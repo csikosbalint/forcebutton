@@ -1,0 +1,8 @@
+<!ENTITY forcebutton.label "Your localized menuitem">
+<!ENTITY forcebuttonContext.label "Your Menuitem">
+<!ENTITY forcebuttonContext.accesskey "Y">
+<!ENTITY forcebuttonToolbarButton.label "Your Toolbar Button">
+<!ENTITY forcebuttonToolbarButton.tooltip "This is your toolbar button!">
+<!ENTITY forcebuttonSidebar.label "Your Sidebar">
+<!ENTITY forcebuttonToolbar.name  "example">
+<!ENTITY forcebuttonToolbar.label "This is an example toolbar. You can hide it under View &gt; toolbars &gt; &forcebuttonToolbar.name;">

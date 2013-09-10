@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<!DOCTYPE dialog SYSTEM "chrome://forcebutton/locale/forceList.dtd">
+
+
+<dialog
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+  id="myDialogId"
+  title="My Dialog"
+  buttons="accept,cancel,help"
+  autostretch="always"
+  ondialogaccept="return onOK();"
+  onload="onLoad();">
+
+  <script type="application/javascript" src="chrome://forcebutton/content/forceList.js"/>
+<script type="application/javascript"><![CDATA[
+    function myloop() {
+        for (i=0;i<=5;i++) {
+            print("<label value=i/>);
+        }
+    }
+]]></script>
+
+  <grid flex="1">
+    <columns>
+        <column flex="3"/>
+        <column flex="2"/>
+        <column flex="1"/>
+    </columns>
+    
+    <rows>
+
+      <row>
+        <label value="ForceID:"/>
+        <label value="Subject:"/>
+        <label value="Countdown:"/>
+      </row>
+
+      <row>
+        &myloop();
+      </row>
+
+      <row>
+      </row>
+
+    </rows>
+
+  </grid>
+
+</dialog>

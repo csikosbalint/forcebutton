@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE overlay SYSTEM
+  "chrome://forcebutton/locale/forceDaemon.dtd">
+
+<overlay id="forcebutton-message-browser-overlay"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/forceDaemon.js" />
+
+</overlay>

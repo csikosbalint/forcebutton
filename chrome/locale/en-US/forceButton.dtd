@@ -1,0 +1,7 @@
+<!ENTITY forcebutton.buttonLabel        "Force">
+<!ENTITY forcebutton.accessKey          "F">
+<!ENTITY forcebutton.confirmTitle       "Confirm it!">
+<!ENTITY forcebutton.confirmText        "Forcing an answer is the last choice for a polite man. Are you sure you want to use it?">
+
+<!ENTITY forcemenu.label                "Force settings...">
+<!ENTITY forcemenu.accesskey            "F">

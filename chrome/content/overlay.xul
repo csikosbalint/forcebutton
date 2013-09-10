@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<overlay id="forcebutton-message-browser-overlay"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+    <!-- FIRST!!! -->
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/forceConfig.js" />
+
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/forceDaemon.js" />
+
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/forceListMenu.js" />
+
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/forceText.js" />
+
+    <!-- LAST!!! -->
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/overlay.js" />
+
+</overlay>

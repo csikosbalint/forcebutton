@@ -1,0 +1,8 @@
+<!ENTITY prefwindow.title "forceButton preferences">
+<!ENTITY pane1.title "forceButton preferences">
+<!ENTITY checkboolpref.label "Debug mód be">
+<!ENTITY checkboolpref.accesskey "D">
+<!ENTITY intpref.label "Démon ciklusidő:">
+<!ENTITY intpref.accesskey "C">
+<!ENTITY stringpref.label "Módosított tárgy:">
+<!ENTITY stringpref.accesskey "M">

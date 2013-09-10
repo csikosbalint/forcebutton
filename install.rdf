@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+  <Description about="urn:mozilla:install-manifest">
+    <em:id>forceButton@fnf.hu</em:id>
+    <em:type>2</em:type>
+    <em:name>forceButton</em:name>
+    <em:version>0.1.1</em:version>
+    <em:creator>Balint Csikos</em:creator>
+    <em:contributor></em:contributor>
+    <em:iconURL>chrome://forcebutton/skin/icon.png</em:iconURL>
+    <em:aboutURL>chrome://forcebutton/content/about.xul</em:aboutURL>
+    <em:optionsURL>chrome://forcebutton/content/options.xul</em:optionsURL>
+    <em:homepageURL>https://devel.fnf.hu/</em:homepageURL>
+    <em:targetApplication>
+      <Description>
+        <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id> <!-- Thunderbird -->
+        <em:minVersion>3.0</em:minVersion>
+        <em:maxVersion>6.0</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+    <em:localized>
+        <Description>
+            <em:locale>en-US</em:locale>
+            <em:name>Force Button</em:name>
+            <em:description>
+                This extension is for corporate environment, where man needs to send every e-mail more many times in order to get an answer.
+            </em:description>
+        </Description>
+        <Description>
+            <em:locale>hu-HU</em:locale>
+            <em:name>Noszogató Gomb</em:name>
+            <em:description>
+                Ezt a kiegészítőt a nagyvállalti kúltúra inspirálta. Egy nap akár többször is elküldi ugyanazt a mail-t a címzetnek beavatkozás nélkül.
+            </em:description>
+        </Description>
+    </em:localized>
+  </Description>
+</RDF>

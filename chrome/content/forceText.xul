@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE overlay SYSTEM
+  "chrome://forcebutton/locale/forceText.dtd">
+
+<overlay id="forcebutton-message-browser-overlay"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+    
+    <hbox id="msgHeaderView">
+        <deck id="msgHeaderViewDeck">
+            <vbox id="expandedHeaderView">
+                <vbox id="expandedHeadersBox">
+                    <hbox id="expandedHeadersBottomBox">
+                        <vbox id="otherActionsBox">                    
+                            <label id="thtest-message-forcebutton"
+                                   insertafter="dateValueBox" class="header">
+                            </label>
+                        </vbox>
+                    </hbox>
+                </vbox>
+            </vbox>
+        </deck>
+    </hbox>
+</overlay>

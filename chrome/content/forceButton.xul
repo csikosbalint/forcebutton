@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE overlay SYSTEM
+  "chrome://forcebutton/locale/forceButton.dtd">
+
+<overlay id="forcebutton-message-browser-overlay"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+    <script type="application/x-javascript"
+    src="chrome://forcebutton/content/forceButton.js" />
+   
+    <toolbar id="composeToolbar2">
+        <hbox pack="end" flex="1">
+            <toolbarseparator/>
+            <toolbarbutton id="forcebutton"
+                    label="&forcebutton.buttonLabel;"
+                    accesskey="&forcebutton.accessKey;"
+                    pack="end"
+                    image="chrome://forcebutton/skin/forceImage.png"
+                    oncommand='confirmButton("&forcebutton.confirmTitle;", "&forcebutton.confirmText;");'>
+            </toolbarbutton>
+         </hbox>
+    </toolbar>
+</overlay>
