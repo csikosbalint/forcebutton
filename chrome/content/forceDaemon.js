@@ -1,5 +1,12 @@
 "use strict";
 
+function onLoad() {
+    // Init to send list
+    initToSendList();
+    // Start daemon cycle
+    DAEMON = setTimeout('daemonThread()');
+}
+
 function daemonThread() {
     log("--------------------------- Daemon cycle started ------------------------------");
     log( "Start time: " + new Date() + " Freq: " + FREQ_TIME/1000 + "(s) Resend: " + RESEND_TIME/1000 + "(s)");
@@ -13,6 +20,7 @@ function daemonThread() {
         if ( old < RESEND_TIME ) {
             log("WAITING (" + (RESEND_TIME - old)/1000 + "s) " + MAIL_LIST[key].getStringReference(0).split("@")[0] + ":" + MAIL_LIST[key].subject );
         } else {
+        	log("SENDING ( after " + RESEND_TIME /1000 + "s) " + MAIL_LIST[key].getStringReference(0).split("@")[0] + ":" + MAIL_LIST[key].subject );
             SendMailNow(MAIL_LIST[key]);
         }
     }
@@ -104,58 +112,6 @@ function log(string) {
         + hours + ":" + minutes + ":" + seconds + " ] " + string + "\n");
 }
 
-function ProcessThisMail(actualMsgHdrDb) {
-    var uuid;
-    var sent = false;
-    var trash = false;
-    try {
-        uuid = actualMsgHdrDb.getStringReference(0);
-    } catch ( ex ) {
-        return;
-    }
-    for ( var i = 0 ; i < sentFolder.length; i++ ) {
-        if ( actualMsgHdrDb.folder.URI == sentFolder[i] ) {
-            sent = true;
-            break;
-        }
-    }
-
-    // Compatible with v0.X.X
-    if ( uuid.indexOf("forcebutton.v0") != -1 ) {
-        // This is a valid forceuuid in references
-        if ( sent ) {
-            // This is in the "Sent" folder
-            log("---------------------------- Updating in MAIL LIST ----------------------------");
-            log("MESSAGE SUBJECT: " + uuid + ":" + actualMsgHdrDb.subject);
-            if ( MAIL_LIST[uuid] != undefined ) {
-                log("MESSAGE TIMEMOD: " + MAIL_LIST[uuid].dateInSeconds + " TO " + actualMsgHdrDb.dateInSeconds + " (ms)");
-            }
-            MAIL_LIST[uuid] = actualMsgHdrDb;
-            return;
-        } else {
-            // This is in the INBOX folder
-            if ( MAIL_LIST[uuid] == undefined ) {
-                // This is a new forceuuid in INBOX folder
-                log("--------------------------------- Warning -------------------------------------");
-                log("WARNING MESSAGE: it is impossible to have an answered forceuuid mail!");
-                log("WARNING UUID:    " + uuid);
-                log("WARNING SUBJECT: " + actualMsgHdrDb.subject);
-                return;
-            } else {
-                // This is an answered mail in INBOX folder
-                log("--------------------------- Removed from MAIL LIST ----------------------------");
-                log("REMOVED UUID:    " + uuid );
-                log("REMOVED SUBJECT: " + MAIL_LIST[uuid].subject);
-                delete MAIL_LIST[uuid];
-                return
-            }
-        }
-    } else {
-        // This is an invalid forceuuid in references
-        return;
-    }
-}
-
 function SendMailNow(aMsgDBHdr) {
     var aMsgURI = aMsgDBHdr.folder.getUriForMsg(aMsgDBHdr);
 
@@ -194,6 +150,7 @@ function SendMailNow(aMsgDBHdr) {
             if ( sendMail(content, aMsgDBHdr.getStringReference(0).split("@")[0]) ) {
                     log("SENDING MESSAGE:   " + aMsgDBHdr.getStringReference(0).split("@")[0] + ":" + aMsgDBHdr.subject );
                 } else {
+                	log("SENDING FAILURE:   " + aMsgDBHdr.getStringReference(0).split("@")[0] + ":" + aMsgDBHdr.subject );
                 }
         }
     }
@@ -267,6 +224,7 @@ function sendMail(content, hash) {
                                                        Components.interfaces.nsIMsgAccount
                                                       ).defaultIdentity;
         } catch(ex) {
+        	log("EXCEPTION: identity not found!");
             continue;
         }
         if ( aCurrentIdentity == null ) {
@@ -402,18 +360,12 @@ function initToSendList() {
     }
 }
 
-function onLoad() {
-    // Init to send list
-    initToSendList();
-    // Start daemon cycle
-    DAEMON = setTimeout('daemonThread()');
-}
-
 function ProcessThisFolder(folder) {
 
         // Folders not to check if monitor or not
+		// TODO: get exclude folders from config window
         if ( folder.URI.indexOf("Junk") != -1 ) return;
-
+        if ( folder.URI.indexOf("Trash") != -1 ) return;
         // Recursive check
         if ( folder.hasSubFolders ) {
             var subFolders = folder.subFolders;
@@ -432,7 +384,7 @@ function ProcessThisFolder(folder) {
         try {
             messageenumerator = thisfolder.messages;
         } catch (e) {
-            log("MONITORING EXCEPTION: " + thisfolder.URI ); log(e);
+            log("MONITORING EXCEPTION: " + thisfolder.URI );// log(e);
         }
 
         if ( messageenumerator ) {
@@ -443,6 +395,65 @@ function ProcessThisFolder(folder) {
             }
         }
 
+}
+
+function ProcessThisMail(actualMsgHdrDb) {
+    var uuid;
+    var thid;
+    
+    var sent = false;
+    var trash = false;
+    
+    try {
+        uuid = actualMsgHdrDb.getStringReference(0);
+        thid = actualMsgHdrDb.threadId;
+    } catch ( ex ) {
+        return;
+    }
+    for ( var i = 0 ; i < sentFolder.length; i++ ) {
+        if ( actualMsgHdrDb.folder.URI == sentFolder[i] ) {
+            sent = true;
+            break;
+        }
+    }
+
+    // Compatible with v0.X.X
+    if ( uuid.indexOf("forcebutton.v0") != -1 ) {
+        // This is a valid forceuuid in references
+        if ( sent ) {
+            // This mail is in the "Sent" folder
+            log("---------------------------- Updating in MAIL LIST ----------------------------");
+            log("MESSAGE(Thread:" +  actualMsgHdrDb.threadId + "): " + uuid + ":" + actualMsgHdrDb.subject);
+            if ( MAIL_LIST[uuid] != undefined ) {
+                log("MESSAGE TIMEMOD: " + MAIL_LIST[uuid].dateInSeconds + " TO " + actualMsgHdrDb.dateInSeconds + " (ms)");
+            }
+            MAIL_LIST[uuid] = actualMsgHdrDb;
+            return;
+        } else {
+            // This mail is in the INBOX folder
+            if ( MAIL_LIST[uuid] == undefined ) {
+                // This is a new forceuuid in INBOX folder
+                log("--------------------------------- Warning -------------------------------------");
+                log("WARNING MESSAGE: it is impossible to have an answered forceuuid mail!");
+                log("WARNING UUID:    " + uuid);
+                log("WARNING THREADID " + actualMsgHdrDb.threadId);
+                log("WARNING SUBJECT: " + actualMsgHdrDb.subject);
+                return;
+            } else {
+                // This is an answered mail in INBOX folder
+                log("--------------------------- Removed from MAIL LIST ----------------------------");
+                log("REMOVED UUID:    " + uuid );
+                log("REMOVED THREADID " + MAIL_LIST[uuid].threadId);
+                log("REMOVED SUBJECT: " + MAIL_LIST[uuid].subject);
+                //MAIL_LIST[uuid].
+                delete MAIL_LIST[uuid];
+                return
+            }
+        }
+    } else {
+        // This is an invalid forceuuid in references
+        return;
+    }
 }
 
 var folderLoadListener =

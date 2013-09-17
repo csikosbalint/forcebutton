@@ -73,11 +73,11 @@ function createUUID() {
 
 
 function onSendEvent( evt ) {
-    if ( FORCE_FLAG != true ) {
+    if ( FORCE_FLAG == false ) {
         return; // Do nothing ...
-    } else {
-        FORCE_FLAG = false;
-    } // Go on ... 
+    }
+    // Go on ...
+    FORCE_FLAG = false;
 
     var prefs = Components.classes["@mozilla.org/preferences-service;1"]
                           .getService(Components.interfaces.nsIPrefService);
@@ -120,7 +120,7 @@ function onSendEvent( evt ) {
     var header = "References: <" + hash + "@forcebutton.v" + major_version + "-" + minor_version + ">\n";
     gMsgCompose.compFields.otherRandomHeaders += header;
    
-    if ( addListElement("<" + hash + "@forcebutton.v" + major_version + "-" + minor_version + ">", gMsgCompose) == true ) {;
+//    if ( addListElement("<" + hash + "@forcebutton.v" + major_version + "-" + minor_version + ">", gMsgCompose) == true ) {;
 
         // Append postscriptum into message body
         try {
@@ -140,8 +140,8 @@ function onSendEvent( evt ) {
             window.alert("Cannot append message body! ...");
             return false;
         }
-    } else {
-        window.alert("Cannot add mail to list!...");
-    }
+//    } else {
+//        window.alert("Cannot add mail to list!...");
+//    }
 }
 window.addEventListener( "compose-send-message", onSendEvent, true );
