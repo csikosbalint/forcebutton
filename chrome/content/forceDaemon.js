@@ -168,7 +168,7 @@ function sendMail(content, msgid) {
 			+ FormatDateTime(new Date(), true) + "");
 	// Remove marker;
 	log("\tmarker\t\tremoved");
-	content = content.replace(/\[.*?\]/g, "");
+	content = content.replace(/X-Superfluous:.*/, "");
 
 	var to = content.match(/^To: .*$/m).toString().split(": ")[1];
 	var from = content.match(/^From: .*$/m).toString().split(": ")[1];
