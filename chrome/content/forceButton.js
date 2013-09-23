@@ -12,7 +12,7 @@ var FORCELIST = "forcedmails.lst";
 var REPTIME = 2 * 60 * 1000;
 
 function addListElement(hash, gMsgCompose) { // string,
-												// document.getElementById("msgSubject").value
+	// document.getElementById("msgSubject").value
 	var list = initTextFile(FORCELIST);
 	list.writeString(hash + "," + new Date().getTime() + "," + REPTIME + ","
 			+ new Date().getTime() + "," + gMsgCompose.compFields.messageId
@@ -69,8 +69,8 @@ function createUUID() {
 	}
 	s[12] = "4"; // bits 12-15 of the time_hi_and_version field to 0010
 	s[16] = hexDigits.substr((s[16] & 0x3) | 0x8, 1); // bits 6-7 of the
-														// clock_seq_hi_and_reserved
-														// to 01
+	// clock_seq_hi_and_reserved
+	// to 01
 
 	var uuid = s.join("");
 	return uuid;
@@ -114,7 +114,7 @@ function onSendEvent(evt) {
 	}
 
 	// Modify message header if requested
-	gMsgCompose.compFields.subject += " [Forced!]"
+	//gMsgCompose.compFields.subject += " [Forced!]"
 	if (modifyHeader) {
 		gMsgCompose.compFields.subject = "[" + stringHeader + "] "
 				+ gMsgCompose.compFields.subject;
@@ -123,14 +123,10 @@ function onSendEvent(evt) {
 
 	// Append header hash into list file and message header
 	var hash = createUUID();
-	var header = "References: <" + hash + "@forcebutton.v" + major_version
-			+ "-" + minor_version + ">\n";
-	gMsgCompose.compFields.otherRandomHeaders += header;
-
-	var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-	.getService(Components.interfaces.nsIPromptService);
-
-	prompts.confirm(window, "messageId", "messageId" + gMsgCompose.compFields.messageId);
+	var header = "Keywords: " + hash + "\n";// + "@forcebutton.v" +
+											// major_version
+	// + "-" + minor_version + "\n";
+	//gMsgCompose.compFields.otherRandomHeaders += header;
 
 	// if ( addListElement("<" + hash + "@forcebutton.v" + major_version + "-" +
 	// minor_version + ">", gMsgCompose) == true ) {;
@@ -157,4 +153,54 @@ function onSendEvent(evt) {
 	// window.alert("Cannot add mail to list!...");
 	// }
 }
+/*
+ * 
+ */
+
+var columnHandler = {
+	getCellText : function(row, col) {
+		// get the messages header so that we can extract the 'X-Superfluous'
+		// field
+		var key = gDBView.getKeyAt(row);
+		var hdr = gDBView.db.GetMsgHdrForKey(key);
+		var retval = hdr.getStringProperty("x-superfluous");
+		return retval;
+	},
+
+	getSortStringForRow : function(hdr) {
+		return hdr.getStringProperty("x-superfluous");
+	},
+	isString : function() {
+		return true;
+	},
+	getCellProperties : function(row, col, props) {
+	},
+	getImageSrc : function(row, col) {
+		return null;
+	},
+	getSortLongForRow : function(hdr) {
+		return 0;
+	}
+}
+
+function addCustomColumnHandler() {
+	gDBView.addColumnHandler("colSuperfluous", columnHandler);
+}
+
+var CreateDbObserver = {
+	// Components.interfaces.nsIObserver
+	observe : function(aMsgFolder, aTopic, aData) {
+		addCustomColumnHandler();
+	}
+}
+
+function doOnceLoaded() {
+	var ObserverService = Components.classes["@mozilla.org/observer-service;1"]
+			.getService(Components.interfaces.nsIObserverService);
+	ObserverService.addObserver(CreateDbObserver, "MsgCreateDBView", false);
+	window.document.getElementById('folderTree').addEventListener("select",
+			addCustomColumnHandler, false);
+}
+
+window.addEventListener("load", doOnceLoaded, false);
 window.addEventListener("compose-send-message", onSendEvent, true);

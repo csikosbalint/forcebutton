@@ -4,6 +4,8 @@
 
 //GLOBAL VARIABLES
 var MAIL_LIST = new Array();                // UUID -> nsIMsgDBHdr
+var ELDERMAIL;								// store oldest forcemail
+
 var LOGSTREAM;                              // logging IO stream
 var DAEMON;                                 // Daemon object - in order to kill/reload it!
 var PREFS;                                  // Preferences branch object

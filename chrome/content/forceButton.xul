@@ -21,4 +21,14 @@
             </toolbarbutton>
          </hbox>
     </toolbar>
+    
+    <tree id="threadTree">
+  		<treecols id="threadCols">
+    		<splitter class="tree-splitter" />
+    			<treecol id="colSuperfluous" persist="hidden ordinal width"
+              		currentView="unthreaded" flex="1"
+              		label="Superfluous"
+              		tooltiptext="Click to sort by Superfluous" />
+  		</treecols>
+	</tree>
 </overlay>

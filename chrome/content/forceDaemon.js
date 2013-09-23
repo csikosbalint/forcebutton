@@ -17,14 +17,12 @@ function daemonThread() {
 	for ( var key in MAIL_LIST) {
 		var now = new Date().getTime();
 		var old = now - (MAIL_LIST[key].dateInSeconds * 1000);
-		// Send if the mail is older then resend time
-		log("MAIL_LIST[" + key + "]:      " + MAIL_LIST[key].subject);
 		if (old < RESEND_TIME) {
-			log("WAITING (" + (RESEND_TIME - old) / 1000 + "s) "
-					+ MAIL_LIST[key].getStringReference(0).split("@")[0] + ":"
+			log("(" + (RESEND_TIME - old) / 1000 + "s)\t"
+					+ MAIL_LIST[key].messageId + "\t"
 					+ MAIL_LIST[key].subject);
 		} else {
-			log("TRYING TO SEND:    " + MAIL_LIST[key].messageId + "   "
+			log("SEND_START\t" + MAIL_LIST[key].messageId + "\t"
 					+ MAIL_LIST[key].subject);
 			SendMailNow(MAIL_LIST[key]);
 		}
@@ -154,10 +152,10 @@ function SendMailNow(aMsgDBHdr) {
 		content = content + scriptInputStream.read(512);
 		if (content.match(/\r\n\r\n/) || content.match(/\n\n/)) {
 			if (sendMail(content, aMsgDBHdr.messageId)) {
-				log("SENDING MESSAGE:   " + aMsgDBHdr.messageId + "   "
+				log("SEND_DONE\t" + aMsgDBHdr.messageId + "\t"
 						+ aMsgDBHdr.subject);
 			} else {
-				log("SENDING FAILURE:   " + aMsgDBHdr.messageId + "   "
+				log("SEND_FAILED\t" + aMsgDBHdr.messageId + "\t"
 						+ aMsgDBHdr.subject);
 			}
 		}
@@ -169,7 +167,7 @@ function sendMail(content, msgid) {
 	content = content.replace(/^Date:.*$/m, "Date: "
 			+ FormatDateTime(new Date(), true) + "");
 	// Remove marker;
-	log(content.replace(/\[Forced\]/g, ""));
+	log("\tmarker\t\tremoved");
 	content = content.replace(/\[.*?\]/g, "");
 
 	var to = content.match(/^To: .*$/m).toString().split(": ")[1];
@@ -213,8 +211,6 @@ function sendMail(content, msgid) {
 			.createInstance(Components.interfaces.nsIMsgCompFields);
 	cf.to = to;
 	cf.replyTo = from;
-	cf.subject = cf.subject.replace("/[Forced!]/", "");
-	log("DEGUB: " + "SENDING SUBJECT IS: " + cf.subject);
 
 	var nfile = Components.classes["@mozilla.org/file/directory_service;1"]
 			.getService(Components.interfaces.nsIProperties).get("TmpD",
@@ -233,7 +229,7 @@ function sendMail(content, msgid) {
 	var accounts = acctMgr.accounts;
 
 	for ( var i = 0; i < accounts.Count(); i++) {
-		log("ACCOUNT " + i);
+		log("\taccount\t\t#" + i);
 		try {
 			aCurrentIdentity = accounts.QueryElementAt(i,
 					Components.interfaces.nsIMsgAccount).defaultIdentity;
@@ -245,7 +241,7 @@ function sendMail(content, msgid) {
 			continue;
 		}
 		if (aCurrentIdentity.identityName == from) {
-			log("SMTP MAIL " + aCurrentIdentity.identityName + " VIA "
+			log("\tsmtp_user\t" + aCurrentIdentity.identityName + " via "
 					+ aCurrentIdentity.smtpServerKey);
 			if (aCurrentIdentity.smtpServerKey != null) {
 				// TODO: get from MAIL_LIST
@@ -276,8 +272,8 @@ function sendMail(content, msgid) {
 		// (" + aCurrentIdentity.email + ").");
 		// }
 	}
-	log("SENDING " + cf.from + " >----> " + cf.to);
-	log("SENDING DETAILS: " + aCurrentIdentity.smtpServerKey + ","
+	log("\tfromto\t\t" + cf.from + " >----> " + cf.to);
+	log("\tdetails\t\t" + aCurrentIdentity.smtpServerKey + ","
 			+ aCurrentIdentity.key + "," + accounts.Count());
 
 	var msgSend = Components.classes["@mozilla.org/messengercompose/send;1"]
@@ -423,7 +419,6 @@ function ProcessThisFolder(folder) {
 }
 
 function ProcessThisMail(actualMsgHdrDb) {
-
 	var sent = false;
 
 	for ( var i = 0; i < sentFolder.length; i++) {
@@ -438,38 +433,93 @@ function ProcessThisMail(actualMsgHdrDb) {
 
 	// if ( uuid.indexOf("forcebutton.v0") != -1 ) {
 	if (sent) {
-		if (actualMsgHdrDb.subject.indexOf("[Forced!]") != -1) {
+		/*
+		 * actual marker is [Forced!] in the Subject
+		 */
+		if (actualMsgHdrDb.subject.indexOf("Answered") == -1 
+				&& actualMsgHdrDb.getStringProperty("x-superfluous") != "" ) { 
 			// This mail is in the "Sent" folder and FORCED
 			log("------------------------------ Added to MAIL LIST -----------------------------");
-			log("ADDED MESSAGE: " + actualMsgHdrDb.subject);
+			log("SUBJECT\t" + actualMsgHdrDb.subject);
+			log("KEYWORDS\t" + actualMsgHdrDb.getStringProperty("x-superfluous"));
 			if (MAIL_LIST[actualMsgHdrDb.messageId] == undefined) {
 				MAIL_LIST[actualMsgHdrDb.messageId] = actualMsgHdrDb;
 			}
 		}
 	} else {
 		// This mail is in the INBOX folder
-		if (MAIL_LIST[actualMsgHdrDb.messageId] != null) {
-			// This is a FORCED answer mail in INBOX folder
-			// Removing marker
-			log("--------------------------- Removed from MAIL LIST ----------------------------");
-			log("REMOVED MESSAGE:    "
-					+ MAIL_LIST[actualMsgHdrDb.messageId].subject);
-			actualMsgHdrDb.setReferences("");
+		var answer = false;
+		for ( var key in MAIL_LIST) {
+//			log("------------- " + actualMsgHdrDb.subject + " vs. "
+//					+ MAIL_LIST[key].subject + " -------------");
+			var vote = 0;
+
+			// TODO: this is not enought criteria for the answer mail
+			/*
+			 * if (actualMsgHdrDb.subject.indexOf(":") != -1 &&
+			 * actualMsgHdrDb.subject.split(":")[1].indexOf(MAIL_LIST[key].subject) !=
+			 * -1) {
+			 */
+			if (MAIL_LIST[key].subject == actualMsgHdrDb.subject ) {
+//				log("------------- subject match ");
+//				log(MAIL_LIST[key].subject + " == " + actualMsgHdrDb.subject
+//						+ " [Forced!]");
+				vote++;
+			}
+
+			if (actualMsgHdrDb.messageSize > MAIL_LIST[key].messageSize) {
+//				log("------------- messageSize match ");
+//				log(actualMsgHdrDb.messageSize + " > "
+//						+ MAIL_LIST[key].messageSize);
+				vote++;
+			}
+
+			if (actualMsgHdrDb.lineCount > MAIL_LIST[key].lineCount) {
+//				log("------------- lineCount match ");
+//				log(actualMsgHdrDb.messageSize + " > "
+//						+ MAIL_LIST[key].messageSize);
+				vote++;
+			}
+
+			if (actualMsgHdrDb.dateInSeconds > MAIL_LIST[key].dateInSeconds) {
+//				log("------------- dateInSeconds match ");
+//				log(actualMsgHdrDb.dateInSeconds + " > "
+//						+ MAIL_LIST[key].dateInSeconds);
+				vote++;
+			}
 			
-			MAIL_LIST[actualMsgHdrDb.messageId].subject = MAIL_LIST[actualMsgHdrDb.messageId].subject
-					.replace("/Forced/", "Answered");
-					
-			log("REPLACED SUBJECT:   "
-					+ MAIL_LIST[actualMsgHdrDb.messageId].subject);
-			
-			MAIL_LIST[actualMsgHdrDb.messageId].folder.msgDatabase = null; /*
-																			 * no
-																			 * leaking
-																			 */
-			log("SUBJECT HAS BEEN SET TO: "
-					+ MAIL_LIST[actualMsgHdrDb.messageId].subject);
-			// Removing from list
-			delete MAIL_LIST[actualMsgHdrDb.messageId];
+			if (actualMsgHdrDb.author.indexOf(MAIL_LIST[key].recipients) ) {
+//				log("------------- author match ");
+//				log(actualMsgHdrDb.author + " == "
+//						+ MAIL_LIST[key].recipients);
+				vote++;
+			}
+
+			// test if this is an answer
+			//log("------------- vote: " + vote + " with "
+			//		+ actualMsgHdrDb.subject + "-------------");
+			if (vote > 3) {
+				// Removing marker
+				log("--------------------------- Removed from MAIL LIST ----------------------------");
+				log("REMOVED MESSAGE:    " + MAIL_LIST[key].subject);
+				log("REPLACED KEYWORDS\t" + MAIL_LIST[key].getStringProperty("x-superfluous"));
+
+				MAIL_LIST[key].subject += " [Answered]";
+				MAIL_LIST[key].setStringProperty("x-superfluous","");
+
+				log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
+				MAIL_LIST[key].folder.msgDatabase = null;
+				log("REPLACED KEYWORDS\t" + MAIL_LIST[key].getStringProperty("x-superfluous"));
+				MAIL_LIST[key].folder.msgDatabase = null;
+
+
+				log("SUBJECT  SET TO\t" + MAIL_LIST[key].subject);
+				log("KEYWORDS SET TO\t" + MAIL_LIST[key].getStringProperty("x-superfluous"));
+
+				// Removing from list
+				delete MAIL_LIST[key];
+				break;
+			}
 		}
 	}
 	return;
