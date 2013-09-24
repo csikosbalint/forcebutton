@@ -1,10 +1,6 @@
 <!ENTITY prefwindow.title "forceButton preferences">
 <!ENTITY pane1.title "forceButton preferences">
-<!ENTITY checkboolpref.label "Debug mode on:">
-<!ENTITY checkboolpref.accesskey "D">
-<!ENTITY intpref.label "Daemon frequency time:">
+<!ENTITY intpref.label "Daemon frequency time in minutes:">
 <!ENTITY intpref.accesskey "F">
-<!ENTITY stringpref.label "Postscriptum:">
-<!ENTITY stringpref.accesskey "P">
-<!ENTITY checkboolpref2.label "Subject addition:">
-<!ENTITY checkboolpref2.accesskey "A">
+<!ENTITY list.label "Daemon frequency time in minutes:">
+<!ENTITY list.accesskey "L">

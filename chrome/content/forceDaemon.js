@@ -9,16 +9,20 @@ function onLoad() {
 
 function daemonThread() {
 	log("--------------------------- Daemon cycle started ------------------------------");
-	log("Start time: " + new Date() + " Freq: " + FREQ_TIME / 1000
-			+ "(s) Resend: " + RESEND_TIME / 1000 + "(s)");
+	log("Start time: " + new Date() + " Repeate freq: " + FREQ_TIME / 1000 + "(s)");
 	log("-------------------------------------------------------------------------------");
 
 	// Check for mails to send
 	for ( var key in MAIL_LIST) {
 		var now = new Date().getTime();
 		var old = now - (MAIL_LIST[key].dateInSeconds * 1000);
-		if (old < RESEND_TIME) {
-			log("(" + (RESEND_TIME - old) / 1000 + "s)\t"
+		if ( ! SEND_INTR[key].match(/^-?\d+$/) ) {
+			log("WARNING! Only whole hours can be used as resend interval! Changed to 2h!")
+			SEND_INTR[key] = 2;
+		}
+		
+		if (old < SEND_INTR[key]*3600000) {
+			log("(" + (SEND_INTR[key]*3600000 - old) / 1000 + "s)\t"
 					+ MAIL_LIST[key].messageId + "\t"
 					+ MAIL_LIST[key].subject);
 		} else {
@@ -168,8 +172,8 @@ function sendMail(content, msgid) {
 			+ FormatDateTime(new Date(), true) + "");
 	// Remove marker;
 	log("\tmarker\t\tremoved");
-	content = content.replace(/X-Superfluous:.*/, "");
-
+	content = content.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm, "");
+	log(content);
 	var to = content.match(/^To: .*$/m).toString().split(": ")[1];
 	var from = content.match(/^From: .*$/m).toString().split(": ")[1];
 
@@ -437,13 +441,14 @@ function ProcessThisMail(actualMsgHdrDb) {
 		 * actual marker is [Forced!] in the Subject
 		 */
 		if (actualMsgHdrDb.subject.indexOf("Answered") == -1 
-				&& actualMsgHdrDb.getStringProperty("x-superfluous") != "" ) { 
+				&& actualMsgHdrDb.getStringProperty("x-forcebutton") != "" ) { 
 			// This mail is in the "Sent" folder and FORCED
 			log("------------------------------ Added to MAIL LIST -----------------------------");
 			log("SUBJECT\t" + actualMsgHdrDb.subject);
 			log("KEYWORDS\t" + actualMsgHdrDb.getStringProperty("x-superfluous"));
 			if (MAIL_LIST[actualMsgHdrDb.messageId] == undefined) {
 				MAIL_LIST[actualMsgHdrDb.messageId] = actualMsgHdrDb;
+				SEND_INTR[actualMsgHdrDb.messageId] = actualMsgHdrDb.getStringProperty("x-forcebutton");
 			}
 		}
 	} else {
@@ -504,7 +509,7 @@ function ProcessThisMail(actualMsgHdrDb) {
 				log("REMOVED MESSAGE:    " + MAIL_LIST[key].subject);
 				log("REPLACED KEYWORDS\t" + MAIL_LIST[key].getStringProperty("x-superfluous"));
 
-				MAIL_LIST[key].subject += " [Answered]";
+				MAIL_LIST[key].subject += " [Answered:" + actualMsgHdrDb.messageId+ "]";
 				MAIL_LIST[key].setStringProperty("x-superfluous","");
 
 				log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
@@ -518,6 +523,7 @@ function ProcessThisMail(actualMsgHdrDb) {
 
 				// Removing from list
 				delete MAIL_LIST[key];
+				delete SEND_INTR[key];
 				break;
 			}
 		}

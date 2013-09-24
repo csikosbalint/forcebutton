@@ -9,7 +9,7 @@
     <script type="application/x-javascript"
     src="chrome://forcebutton/content/forceButton.js" />
    
-    <toolbar id="composeToolbar2">
+<!--    <toolbar id="composeToolbar2">
         <hbox pack="end" flex="1">
             <toolbarseparator/>
             <toolbarbutton id="forcebutton"
@@ -21,14 +21,15 @@
             </toolbarbutton>
          </hbox>
     </toolbar>
+-->
     
     <tree id="threadTree">
   		<treecols id="threadCols">
     		<splitter class="tree-splitter" />
-    			<treecol id="colSuperfluous" persist="hidden ordinal width"
+    			<treecol id="colForcebutton" persist="hidden ordinal width"
               		currentView="unthreaded" flex="1"
-              		label="Superfluous"
-              		tooltiptext="Click to sort by Superfluous" />
+              		label="Forcebutton"
+              		tooltiptext="&forcebutton.confirmText;" />
   		</treecols>
 	</tree>
 </overlay>

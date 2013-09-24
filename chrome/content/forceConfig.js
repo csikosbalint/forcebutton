@@ -3,7 +3,8 @@
  */
 
 //GLOBAL VARIABLES
-var MAIL_LIST = new Array();                // UUID -> nsIMsgDBHdr
+var MAIL_LIST = new Array();                // messageId -> nsIMsgDBHdr
+var SEND_INTR = new Array();				// messageId -> ms
 var ELDERMAIL;								// store oldest forcemail
 
 var LOGSTREAM;                              // logging IO stream
@@ -32,8 +33,8 @@ function initConfig() {
     FORCEDIR    = "forcebutton";
     DAEMON_LOG  = "daemon.log";
     FORCELIST   = "forcedmails.lst";
-    FREQ_TIME   = 120000;                      // daemon freq (ms)
-    RESEND_TIME = 240000;                      // resending in (ms)
+    FREQ_TIME   = 60000;                      // daemon freq (ms)
+    RESEND_TIME = 90000;                      // resending in (ms)
     DEBUG_MODE  = true;
     AUTHOR_MAIL = "johnnym@fnf.hu";
 
