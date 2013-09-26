@@ -2,5 +2,5 @@
 <!ENTITY pane1.title "forceButton preferences">
 <!ENTITY intpref.label "Daemon frequency time in minutes:">
 <!ENTITY intpref.accesskey "F">
-<!ENTITY list.label "Daemon frequency time in minutes:">
-<!ENTITY list.accesskey "L">
+<!ENTITY list.label "Forced mails:">
+<!ENTITY list.accesskey "L">"chrome/content/options.xul"
