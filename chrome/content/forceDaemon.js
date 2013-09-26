@@ -2,45 +2,24 @@
 
 function onLoad() {
 	// Init to send list
-	initToSendList();
+	initMAIL_LIST();
+	// Init sent folders
+	initFolders();
 	// Start daemon cycle
 	DAEMON = setTimeout('daemonThread()');
-	/*
-	 * https://developer.mozilla.org/en-US/docs/XUL/listbox
-	 */
-	var theList = document.getElementById('list ');
-	var row = document.createElement('listitem');
-	var cell = document.createElement('listcell');
-
-	var list = readTextFile(FORCELIST);
-	list.QueryInterface(Components.interfaces.nsIUnicharLineInputStream);
-	if (list instanceof Components.interfaces.nsIUnicharLineInputStream) {
-		var line = {};
-		var cont;
-		do {
-			cont = list.readLine(line);
-			/*
-			 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
-			 */
-
-			cell.setAttribute('label', "cica");
-			row.appendChild(cell);
-
-			cell = document.createElement('listcell');
-			cell.setAttribute('label', "kutya");
-			row.appendChild(cell);
-
-			theList.appendChild(row);
-
-		} while (cont);
-
-	}
-
-	list.close();
 
 }
 
 function daemonThread() {
+	if ( FIRST ) {
+		FIRST = false;
+		for ( var key in MAIL_LIST) {
+			MAIL_LIST[key].date = new Date().getTime();
+		}
+		setTimeout('daemonThread()', FREQ_TIME);
+		return;
+	}
+	
 	log("--------------------------- Daemon cycle started ------------------------------");
 	log("Start time: " + new Date() + " Repeate freq: " + (FREQ_TIME / 60000)
 			+ "(m)");
@@ -48,27 +27,84 @@ function daemonThread() {
 
 	// Check for mails to send
 	for ( var key in MAIL_LIST) {
+		if (checkMAIL_LIST(MAIL_LIST[key].messageId)) { /*
+														 * TRUE if mail in
+														 * forcelist
+														 */
+			var now = new Date().getTime();	// seconds
+			var old = now - (MAIL_LIST[key].date / 1000000 ); // seconds
 
-		var now = new Date().getTime();
-		var old = now - (MAIL_LIST[key].dateInSeconds * 1000);
-		if (!SEND_INTR[key].match(/^-?\d+$/)) {
-			log("WARNING! Only whole hours can be used as resend interval! Changed to 2h!");
-			SEND_INTR[key] = 2;
-		}
+			// WARN if resend is not a number
+			if (!SEND_INTR[key].match(/^-?\d+$/)) {
+				log("WARNING! Only whole hours can be used as resend interval! Changed to "
+						+ SEND_DEF + "h!");
+				SEND_INTR[key] = SEND_DEF;
+			}
 
-		if (old < SEND_INTR[key] * 3600000) {
-			log("(" + (SEND_INTR[key] * 3600000 - old) / 1000 + "s)\t"
-					+ MAIL_LIST[key].messageId + "\t" + MAIL_LIST[key].subject);
+			// WARN if resend is not the same as in forcelist
+			var send_int = resendMAIL_LIST(MAIL_LIST[key].messageId);
+			if (send_int != SEND_INTR[key]) {
+				log("WARNING! The forcelist or X-Forcebutton resend time changed! Using forcelist resend time!");
+				SEND_INTR[key] = send_int;
+			}
+
+			if (old < SEND_INTR[key] * 3600000/10) {
+				log("(" + (SEND_INTR[key] * 3600000 - old) / 1000 + "s)\t"
+						+ MAIL_LIST[key].messageId + "\t"
+						+ MAIL_LIST[key].subject);
+			} else {
+				log("SEND_START\t" + MAIL_LIST[key].messageId + "\t"
+						+ MAIL_LIST[key].subject);
+				SendMailNow(MAIL_LIST[key]);
+			}
 		} else {
-			log("SEND_START\t" + MAIL_LIST[key].messageId + "\t"
-					+ MAIL_LIST[key].subject);
-			SendMailNow(MAIL_LIST[key]);
+
 		}
+
 	}
 	log("------------------------------ Daemon cycle end -------------------------------");
 
 	// Loop for infinity and beyond
 	setTimeout('daemonThread()', FREQ_TIME);
+}
+
+function addToMAIL_LIST(actualMsgHdrDb) {
+	log("------------------------------- Adding to MAIL_LIST ----------------------------");
+	log("SUBJECT\t" + actualMsgHdrDb.subject + " ("
+			+ actualMsgHdrDb.getStringProperty("x-forcebutton") + "h)");
+	if (MAIL_LIST[actualMsgHdrDb.messageId] == undefined) {
+		actualMsgHdrDb.date = new Date().getTime() * 1000000;
+		MAIL_LIST[actualMsgHdrDb.messageId] = actualMsgHdrDb;
+		SEND_INTR[actualMsgHdrDb.messageId] = actualMsgHdrDb
+				.getStringProperty("x-forcebutton");
+
+		var list = initTextFile(FORCELIST);
+		/*
+		 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
+		 */
+		list.writeString(actualMsgHdrDb.messageId + ","
+				+ actualMsgHdrDb.subject + ","
+				+ SEND_INTR[actualMsgHdrDb.messageId] + "\n");
+		list.close();
+	}
+	return true;
+}
+
+function removeMAIL_LIST(key, actualMsgHdrDb) {
+	// Removing marker
+	log("--------------------------- Removed from MAIL LIST ----------------------------");
+	log("REMOVED MESSAGE:    " + MAIL_LIST[key].subject);
+
+	MAIL_LIST[key].subject += " [Answered by\"" + actualMsgHdrDb.subject + "\"]";
+	log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
+	
+	MAIL_LIST[key].folder.msgDatabase = null;
+
+	// Removing from list
+	delete MAIL_LIST[key];
+	delete SEND_INTR[key];
+
+	return delMAIL_LIST(key);
 }
 
 function daemonConfirm() {
@@ -129,13 +165,16 @@ function SendMailNow(aMsgDBHdr) {
 }
 
 function sendMail(content, msgid) {
-	// Modify "Date:" in message body
+	// Modify "Date:" in message body and db
 	content = content.replace(/^Date:.*$/m, "Date: "
 			+ FormatDateTime(new Date(), true) + "");
+	var now = new Date().getTime();
+	MAIL_LIST[msgid].date = now * 1000000;
+	
 	// Remove marker;
 	log("\tmarker\t\tremoved");
 	content = content.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm, "");
-	log(content);
+	//log(content);
 	var to = content.match(/^To: .*$/m).toString().split(": ")[1];
 	var from = content.match(/^From: .*$/m).toString().split(": ")[1];
 
@@ -307,7 +346,17 @@ function CopyRecurListener(folder) {
 	this._folder = folder;
 }
 
-function initToSendList() {
+function initMAIL_LIST() {
+	MAIL_LIST = new Array();
+	SEND_INTR = new Array();
+
+	var forcelist = overwriteTextFile(FORCELIST);
+
+	forcelist
+			.writeString("#messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]\n");
+}
+
+function initFolders() {
 
 	var accountManager = Components.classes["@mozilla.org/messenger/account-manager;1"]
 			.getService(Components.interfaces.nsIMsgAccountManager);
@@ -351,6 +400,7 @@ function ProcessThisFolder(folder) {
 		return;
 	if (folder.URI.indexOf("Trash") != -1)
 		return;
+
 	// Recursive check
 	if (folder.hasSubFolders) {
 		var subFolders = folder.subFolders;
@@ -380,27 +430,6 @@ function ProcessThisFolder(folder) {
 			// Process mails
 			ProcessThisMail(aMsgHdrDb);
 		}
-	}
-
-}
-
-function addToMAIL_LIST(actualMsgHdrDb) {
-	log("------------------------------- Adding to MAIL_LIST ----------------------------");
-	log("SUBJECT\t" + actualMsgHdrDb.subject + " ("
-			+ actualMsgHdrDb.getStringProperty("x-superfluous") + "h)");
-	if (MAIL_LIST[actualMsgHdrDb.messageId] == undefined) {
-		MAIL_LIST[actualMsgHdrDb.messageId] = actualMsgHdrDb;
-		SEND_INTR[actualMsgHdrDb.messageId] = actualMsgHdrDb
-				.getStringProperty("x-forcebutton");
-
-		var list = initTextFile(FORCELIST);
-		/*
-		 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
-		 */
-		list.writeString(actualMsgHdrDb.messageId + ","
-				+ actualMsgHdrDb.subject + ","
-				+ SEND_INTR[actualMsgHdrDb.messageId] + "\n");
-		list.close();
 	}
 
 }
@@ -447,68 +476,53 @@ function ProcessThisMail(actualMsgHdrDb) {
 			 * actualMsgHdrDb.subject.split(":")[1].indexOf(MAIL_LIST[key].subject) !=
 			 * -1) {
 			 */
-			if (MAIL_LIST[key].subject == actualMsgHdrDb.subject) {
-				// log("------------- subject match ");
-				// log(MAIL_LIST[key].subject + " == " + actualMsgHdrDb.subject
-				// + " [Forced!]");
+			if (actualMsgHdrDb.subject != undefined && 
+				MAIL_LIST[key].subject.indexOf(actualMsgHdrDb.subject) != -1 &&
+				actualMsgHdrDb.subject.length > 0 ) {
+//				 log("------------- subject match ");
+//				 log(MAIL_LIST[key].subject + " == " + actualMsgHdrDb.subject);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.messageSize > MAIL_LIST[key].messageSize) {
-				// log("------------- messageSize match ");
-				// log(actualMsgHdrDb.messageSize + " > "
-				// + MAIL_LIST[key].messageSize);
+//				 log("------------- messageSize match ");
+//				 log(actualMsgHdrDb.messageSize + " > "
+//				 + MAIL_LIST[key].messageSize);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.lineCount > MAIL_LIST[key].lineCount) {
-				// log("------------- lineCount match ");
-				// log(actualMsgHdrDb.messageSize + " > "
-				// + MAIL_LIST[key].messageSize);
+//				 log("------------- lineCount match ");
+//				 log(actualMsgHdrDb.lineCount + " > "
+//				 + MAIL_LIST[key].lineCount);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.dateInSeconds > MAIL_LIST[key].dateInSeconds) {
-				// log("------------- dateInSeconds match ");
-				// log(actualMsgHdrDb.dateInSeconds + " > "
-				// + MAIL_LIST[key].dateInSeconds);
+//				 log("------------- dateInSeconds match ");
+//				 log(actualMsgHdrDb.dateInSeconds + " > "
+//				 + MAIL_LIST[key].dateInSeconds);
 				vote++;
 			}
 
-			if (actualMsgHdrDb.author.indexOf(MAIL_LIST[key].recipients)) {
-				// log("------------- author match ");
-				// log(actualMsgHdrDb.author + " == "
-				// + MAIL_LIST[key].recipients);
+			if (actualMsgHdrDb.author.indexOf(MAIL_LIST[key].recipients) != -1 ) {
+//				 log("------------- author match ");
+//				 log(actualMsgHdrDb.author + " == "
+//				 + MAIL_LIST[key].recipients);
 				vote++;
 			}
 
 			// test if this is an answer
-			// log("------------- vote: " + vote + " with "
-			// + actualMsgHdrDb.subject + "-------------");
+//			 log("------------- vote: " + vote + " with \""
+//			 + actualMsgHdrDb.subject + "\"-------------");
 			if (vote > 3) {
-				// Removing marker
-				log("--------------------------- Removed from MAIL LIST ----------------------------");
-				log("REMOVED MESSAGE:    " + MAIL_LIST[key].subject);
-				log("REPLACED KEYWORDS\t"
-						+ MAIL_LIST[key].getStringProperty("x-superfluous"));
+//				log("VOTE: " + vote);
+				if (removeMAIL_LIST(key, actualMsgHdrDb)) {
+					log("------------------------------- Remove DONE! -----------------------------");
+				} else {
+					log("------------------------------ Remove FAILED! ----------------------------");
+				}
 
-				MAIL_LIST[key].subject += " [Answered:"
-						+ actualMsgHdrDb.messageId + "]";
-				MAIL_LIST[key].setStringProperty("x-superfluous", "");
-
-				log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
-				MAIL_LIST[key].folder.msgDatabase = null;
-				log("REPLACED KEYWORDS\t"
-						+ MAIL_LIST[key].getStringProperty("x-superfluous"));
-				MAIL_LIST[key].folder.msgDatabase = null;
-
-				log("SUBJECT  SET TO\t" + MAIL_LIST[key].subject);
-				log("KEYWORDS SET TO\t"
-						+ MAIL_LIST[key].getStringProperty("x-superfluous"));
-
-				// Removing from list
-				delete MAIL_LIST[key];
-				delete SEND_INTR[key];
 				break;
 			}
 		}
@@ -588,6 +602,86 @@ function initFolderLoadListener() {
 	log("FolderLoad event listener has been registered!");
 }
 
+function checkMAIL_LIST(messageId) {
+	var list = readTextFile(FORCELIST);
+	list.QueryInterface(Components.interfaces.nsIUnicharLineInputStream);
+
+	if (list instanceof Components.interfaces.nsIUnicharLineInputStream) {
+		var line = {};
+		var cont;
+		do {
+			cont = list.readLine(line);
+			/*
+			 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
+			 */
+			if (line.value.indexOf("#") == 0) {
+				continue;
+			}
+			if (line.value.indexOf(messageId) == 0) {
+				return true;
+			}
+
+		} while (cont);
+	}
+	list.close();
+
+	return false;
+}
+
+function delMAIL_LIST(messageId) {
+	var data = "";
+	var list = readTextFile(FORCELIST);
+	list.QueryInterface(Components.interfaces.nsIUnicharLineInputStream);
+
+	if (list instanceof Components.interfaces.nsIUnicharLineInputStream) {
+		var line = {};
+		var cont;
+		do {
+			cont = list.readLine(line);
+			/*
+			 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
+			 */
+//			if (line.value.indexOf("#") == 0) {
+//				continue;
+//			}
+			if (line.value.indexOf(messageId) == 0) {
+				continue;
+			}
+			data += line.value;
+		} while (cont);
+	}
+	list.close();
+	list = overwriteTextFile(FORCELIST);
+	list.writeString(data);
+	list.close();
+	return !checkMAIL_LIST(messageId);
+}
+
+function resendMAIL_LIST(messageId) {
+	var list = readTextFile(FORCELIST);
+	list.QueryInterface(Components.interfaces.nsIUnicharLineInputStream);
+
+	if (list instanceof Components.interfaces.nsIUnicharLineInputStream) {
+		var line = {};
+		var cont;
+		do {
+			cont = list.readLine(line);
+			/*
+			 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
+			 */
+			if (line.value.indexOf("#") == 0) {
+				continue;
+			}
+			if (line.value.indexOf(messageId) == 0) {
+				return line.value.split(",")[2];
+			}
+
+		} while (cont);
+		list.close();
+	}
+	return SEND_DEF;
+}
+
 function FormatDateTime(thisdate, includeTZ) {
 	var s = "";
 	var sDaysOfWeek = [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" ];
@@ -635,27 +729,4 @@ function FormatDateTime(thisdate, includeTZ) {
 		s += val;
 	}
 	return s;
-}
-
-function log(string) {
-	if (!DEBUG_MODE)
-		return;
-	if (LOGSTREAM == undefined)
-		LOGSTREAM = initTextFile(DAEMON_LOG);
-
-	var currentTime = new Date();
-	var month = currentTime.getMonth() + 1;
-	var day = currentTime.getDate();
-	var year = currentTime.getFullYear();
-	var hours = currentTime.getHours();
-	var minutes = currentTime.getMinutes();
-	var seconds = currentTime.getSeconds();
-	if (minutes < 10) {
-		minutes = "0" + minutes;
-	}
-	if (seconds < 10) {
-		seconds = "0" + seconds;
-	}
-	LOGSTREAM.writeString("[ " + month + "/" + day + "/" + year + " " + hours
-			+ ":" + minutes + ":" + seconds + " ] " + string + "\n");
 }

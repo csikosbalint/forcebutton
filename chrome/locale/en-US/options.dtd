@@ -3,4 +3,4 @@
 <!ENTITY intpref.label "Daemon frequency time in minutes:">
 <!ENTITY intpref.accesskey "F">
 <!ENTITY list.label "Forced mails:">
-<!ENTITY list.accesskey "L">"chrome/content/options.xul"
+<!ENTITY list.accesskey "L">

@@ -1,23 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
-<!DOCTYPE prefwindow SYSTEM "chrome://forcebutton/locale/options.dtd">
+<!DOCTYPE prefwindow SYSTEM "chrome://forcebutton/locale/options.dtd">    
+
 <prefwindow id="forcebutton-preferences" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <prefpane id="paneProfiles" label="Profiles">
-    <preferences>
-      <preference id="freqTime" name="extensions.forcebutton.freqTime" type="int"/>
-    </preferences>
-    <label accesskey="&intpref.accesskey;" control="textintpref">&intpref.label;</label>
-    <textbox id="textintpref" preference="freqTime"/>
-    <label accesskey="&list.accesskey;" control="list">&list.label;</label>
-    <listbox id="list" rows="10" width="400">
-  		<listhead>
-    		<listheader label="Subject" width="240"/>
-    		<listheader label="Resend" width="150"/>
-  		</listhead>
-  		<listcols>
-    		<listcol/>
-    		<listcol flex="1"/>
-  		</listcols>
-	</listbox>
-  </prefpane>
+	
+  	<prefpane id="paneProfiles" label="Profiles">
+    	<preferences>
+      		<preference id="freqTime" name="extensions.forcebutton.freqTime" type="int"/>
+    	</preferences>
+    
+    	<label accesskey="&intpref.accesskey;" control="textintpref">&intpref.label;</label>
+    	<textbox id="textintpref" preference="freqTime"/>
+    	<label accesskey="&list.accesskey;" control="list">&list.label;</label>
+    	<listbox id="list" rows="10" width="400">
+  			<listhead>
+    			<listheader label="Subject" width="240"/>
+    			<listheader label="Resend" width="150"/>
+  			</listhead>
+  			<listcols>
+    			<listcol/>
+    			<listcol flex="1"/>
+  			</listcols>
+		</listbox>
+  	</prefpane>
+  	<script type="application/x-javascript" src="chrome://forcebutton/content/forceConfig.js" />
+  	<script type="application/x-javascript" src="chrome://forcebutton/content/options.js" />
 </prefwindow>
