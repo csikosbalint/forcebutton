@@ -1,7 +1,7 @@
 // GLOBAL VARIABLES
 var FORCE_FLAG;
-var major_version = 0;
-var minor_version = 1.3;
+var major_version = '1';
+var minor_version = '0.0';
 
 // CONFIG VARIABLES
 // TODO: Put these config props into pref.js
@@ -51,9 +51,27 @@ var minor_version = 1.3;
 //}
 
 function onSendEvent(evt) {
-	if (gMsgCompose.compFields.otherRandomHeaders,indexOf("X-Forcebutton") == -1) {
+	var headers = gMsgCompose.compFields.otherRandomHeaders;
+	if (headers.indexOf("X-Forcebutton: ") == -1) {
 		return; // Do nothing ...
 	}
+	/*
+	 * check and normalize X-Forcebutton tag values
+	 */
+	var xforcebutton = headers.match(/X-Forcebutton: [0-9]+/g);
+	if ( xforcebutton == null ) {
+		xforcebutton = "X-Forcebutton: 2";
+		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm, 
+			xforcebutton + "$1");
+		window.alert(headers);
+	} else {
+		window.alert(xforcebutton.length);
+		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm, 
+			xforcebutton + ",v" + major_version + "." + minor_version + "$1");
+		window.alert(headers);
+	}
+	
+	gMsgCompose.compFields.otherRandomHeaders = headers;
 	
 //	var prefs = Components.classes["@mozilla.org/preferences-service;1"]
 //			.getService(Components.interfaces.nsIPrefService);
@@ -171,8 +189,8 @@ function doOnceLoaded() {
 	var ObserverService = Components.classes["@mozilla.org/observer-service;1"]
 			.getService(Components.interfaces.nsIObserverService);
 	ObserverService.addObserver(CreateDbObserver, "MsgCreateDBView", false);
-	window.document.getElementById('folderTree').addEventListener("select",
-			addCustomColumnHandler, false);
+//	window.document.getElementById('folderTree').addEventListener("select",
+//			addCustomColumnHandler, false);
 }
 
 window.addEventListener("load", doOnceLoaded, false);
