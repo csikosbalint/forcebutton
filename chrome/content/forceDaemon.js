@@ -27,18 +27,20 @@ var myPrefObserver = {
 	if (aTopic != "nsPref:changed") {
 		return;
 	}
+	log("--------------------------- Reinitalization ---------------------------");
 	initConfig();
+	initDaemon();
 	return;
     // aSubject is the nsIPrefBranch we're observing (after appropriate QI)
     // aData is the name of the pref that's been changed (relative to aSubject)
-    switch (aData) {
-      case "pref1":
-        // extensions.myextension.pref1 was changed
-        break;
-      case "pref2":
-        // extensions.myextension.pref2 was changed
-        break;
-    }
+//    switch (aData) {
+//      case "pref1":
+//        // extensions.myextension.pref1 was changed
+//        break;
+//      case "pref2":
+//        // extensions.myextension.pref2 was changed
+//        break;
+//    }
   }
 }
 myPrefObserver.register();
@@ -57,7 +59,7 @@ function onLoad() {
 	// Init sent folders
 	initFolders();
 	// Start daemon cycle
-	DAEMON = setTimeout('daemonThread()');
+	initDaemon();
 }
 
 function daemonThread() {
@@ -116,5 +118,5 @@ function daemonThread() {
 	log("------------------------------ Daemon cycle end -------------------------------");
 
 	// Loop for infinity and beyond
-	setTimeout('daemonThread()', FREQ_TIME);
+	setTimeout('daemonThread()', FREQ_TIME * 60000);
 }

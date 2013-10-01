@@ -8,9 +8,14 @@
     	<preferences>
       		<preference id="freqTime" name="extensions.forcebutton.freqTime" type="int"/>
     	</preferences>
-    
-    	<label accesskey="&intpref.accesskey;" control="textintpref">&intpref.label;</label>
-    	<textbox id="textintpref" preference="freqTime"/>
+    	<hbox>
+    		<vbox>
+    			<hbox>
+    				<label accesskey="&intpref.accesskey;" control="textintpref">&intpref.label;</label>
+    				<textbox id="textintpref" preference="freqTime"/>
+    			</hbox>
+    		</vbox>
+    	</hbox>
     	<label accesskey="&list.accesskey;" control="list">&list.label;</label>
     	<listbox id="list" rows="10" width="400">
   			<listhead>

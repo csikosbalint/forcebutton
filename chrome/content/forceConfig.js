@@ -29,18 +29,22 @@ var DEBUG_MODE;
 var AUTHOR_MAIL;
 
 function initConfig() {
-	
-	var prefService =
-	  Components.classes["@mozilla.org/preferences-service;1"]
-         .getService(Components.interfaces.nsIPrefService)
-         .getBranch("extensions.forcebutton.");
+
+	var prefService = Components.classes["@mozilla.org/preferences-service;1"]
+			.getService(Components.interfaces.nsIPrefService).getBranch(
+					"extensions.forcebutton.");
 
 	// CONFIG VARIABLES
 	// TODO: Put these config props into pref.js
 	FORCEDIR = "forcebutton";
 	DAEMON_LOG = "daemon.log";
 	FORCELIST = "forcedmails.lst";
-	FREQ_TIME = prefService.getIntPref("freqTime"); // daemon freq (ms)
+	if (prefService.getIntPref("freqTime") != 0) {
+		FREQ_TIME = prefService.getIntPref("freqTime"); // daemon freq (ms)
+	} else {
+		FREQ_TIME = 1;
+	}
+
 	SEND_DEF = 2; // default resend (h)
 	DEBUG_MODE = true;
 	AUTHOR_MAIL = "johnnym@fnf.hu";
@@ -232,10 +236,11 @@ function removeMAIL_LIST(key, actualMsgHdrDb) {
 	log("--------------------------- Removed from MAIL LIST ----------------------------");
 	log("REMOVED MESSAGE:    " + MAIL_LIST[key].subject);
 
-	if ( actualMsgHdrDb == undefined ) {	
+	if (actualMsgHdrDb == undefined) {
 		MAIL_LIST[key].subject += " [Answered by manually]";
 	} else {
-		MAIL_LIST[key].subject += " [Answered by\"" + actualMsgHdrDb.subject + "]";
+		MAIL_LIST[key].subject += " [Answered by\"" + actualMsgHdrDb.subject
+				+ "]";
 	}
 	log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
 
@@ -290,12 +295,13 @@ function delMAIL_LIST(messageId) {
 function addToMAIL_LIST(actualMsgHdrDb) {
 	log("------------------------------- Adding to MAIL_LIST ----------------------------");
 	log("SUBJECT\t" + actualMsgHdrDb.subject + " ("
-			+ actualMsgHdrDb.getStringProperty("x-forcebutton").split(",")[0] + "h)");
+			+ actualMsgHdrDb.getStringProperty("x-forcebutton").split(",")[0]
+			+ "h)");
 	if (MAIL_LIST[actualMsgHdrDb.messageId] == undefined) {
 		actualMsgHdrDb.date = new Date().getTime() * 1000000;
 		MAIL_LIST[actualMsgHdrDb.messageId] = actualMsgHdrDb;
-		SEND_INTR[actualMsgHdrDb.messageId] = actualMsgHdrDb
-				.getStringProperty("x-forcebutton").split(",")[0];
+		SEND_INTR[actualMsgHdrDb.messageId] = actualMsgHdrDb.getStringProperty(
+				"x-forcebutton").split(",")[0];
 
 		var list = initTextFile(FORCELIST);
 		/*
@@ -427,16 +433,51 @@ function sendMail(content, msgid) {
 
 	for ( var i = 0; i < accounts.Count(); i++) {
 		log("\taccount\t\t#" + i);
+		// try {
+		// var tmp =
+		// accounts.QueryElementAt(i,Components.interfaces.nsIMsgAccount)
+		// if ( tmp == null ) {
+		// log("nsIMsgAccount is null");
+		// break;
+		// }
+		// //tmp.init();
+		// aCurrentIdentity = tmp.defaultIdentity;
+		// if ( aCurrentIdentity == null ) {
+		// log(" aCurrentIdentity is null");
+		// log("identities " + tmp.identities);
+		// log("identity 0 " + tmp.identities.ElementAt(0));
+		// //log("identity 1 " + tmp.identities.ElementAt(1));
+		// //log("identity 2 " + tmp.identities.ElementAt(2));
+		// log("incomingServer " + tmp.incomingServer);
+		// log("key " + tmp.key);
+		// log("defaultIdentity " + tmp.defaultIdentity);
+		//				
+		// break;
+		// } else {
+		// log("identities " + tmp.identities);
+		// log("identity 0 " + tmp.identities.ElementAt(0));
+		//				
+		// log("incomingServer " + tmp.incomingServer);
+		// log("key " + tmp.key);
+		// log("defaultIdentity " + tmp.defaultIdentity);
+		// }
+		//			
+		//			
+		// } catch (ex) {
+		// log("EXCEPTION: identity not found!");
+		// continue;
+		// }
 		try {
-			aCurrentIdentity = accounts.QueryElementAt(i,
-					Components.interfaces.nsIMsgAccount).defaultIdentity;
+			aCurrentIdentity = gCurrentIdentity;//accounts.QueryElementAt(i,
+					//Components.interfaces.nsIMsgAccount).defaultIdentity;
 		} catch (ex) {
-			log("EXCEPTION: identity not found!");
+			log("EXCEPTION: identity exception: " + ex);
 			continue;
 		}
 		if (aCurrentIdentity == null) {
 			continue;
 		}
+
 		if (aCurrentIdentity.identityName == from) {
 			log("\tsmtp_user\t" + aCurrentIdentity.identityName + " via "
 					+ aCurrentIdentity.smtpServerKey);
@@ -469,6 +510,11 @@ function sendMail(content, msgid) {
 		// (" + aCurrentIdentity.email + ").");
 		// }
 	}
+	if (aCurrentIdentity == null) {
+		log(" aCurrentIdentity is null");
+		return false;
+	}
+
 	log("\tfromto\t\t" + cf.from + " >----> " + cf.to);
 	log("\tdetails\t\t" + aCurrentIdentity.smtpServerKey + ","
 			+ aCurrentIdentity.key + "," + accounts.Count());
@@ -645,7 +691,7 @@ function ProcessThisMail(actualMsgHdrDb) {
 		/*
 		 * actual marker is [Forced!] in the Subject
 		 */
-		if (	actualMsgHdrDb.subject.indexOf("Answered") == -1
+		if (actualMsgHdrDb.subject.indexOf("Answered") == -1
 				&& actualMsgHdrDb.getStringProperty("x-forcebutton") != "") {
 			// This mail is in the "Sent" folder and FORCED
 			if (addToMAIL_LIST(actualMsgHdrDb)) {
@@ -794,6 +840,14 @@ function initFolderLoadListener() {
 			Components.interfaces.nsIFolderListener.event);
 
 	log("FolderLoad event listener has been registered!");
+}
+
+function initDaemon() {
+	if (DAEMON != undefined) {
+		clearTimeout(DAEMON);
+	}
+	log("Daemon has been initalized with " + (FREQ_TIME * 60000) + " ms!");
+	DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
 }
 
 function checkMAIL_LIST(messageId) {

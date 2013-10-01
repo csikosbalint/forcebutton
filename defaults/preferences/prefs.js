@@ -1,5 +1,5 @@
 pref("extensions.forcebutton.debugMode", false);
-pref("extensions.forcebutton.freqTime", 5000);
+pref("extensions.forcebutton.freqTime", 30);
 
 // https://developer.mozilla.org/en-US/docs/Extensions/Thunderbird/customDBHeaders_Preference
 // this allows you to add extra headers while composing messages
