@@ -253,16 +253,6 @@ function removeMAIL_LIST(key, actualMsgHdrDb) {
 	return delMAIL_LIST(key);
 }
 
-function daemonConfirm() {
-	var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-			.getService(Components.interfaces.nsIPromptService);
-	if (prompts
-			.confirm(window, "ForceButton", "Should ForceButton initialize?")) {
-		return true;
-	}
-	return false;
-}
-
 function delMAIL_LIST(messageId) {
 	var data = "";
 	var list = readTextFile(FORCELIST);
@@ -386,7 +376,7 @@ function sendMail(content, msgid) {
 	var sfile = Components.classes["@mozilla.org/file/local;1"]
 			.createInstance(Components.interfaces.nsILocalFile);
 	sfile.initWithPath(tempDir.path);
-
+	log("\tfile written\t" + tempDir.path);
 	try {
 		if (sfile.exists())
 			sfile.remove(true);
@@ -431,11 +421,11 @@ function sendMail(content, msgid) {
 
 	var accounts = acctMgr.accounts;
 
-	for ( var i = 0; i < accounts.Count(); i++) {
+	for ( var i = 0; i < accounts.length; i++) {
 		log("\taccount\t\t#" + i);
 		// try {
 		// var tmp =
-		// accounts.QueryElementAt(i,Components.interfaces.nsIMsgAccount)
+		// accounts.queryElementAt(i,Components.interfaces.nsIMsgAccount)
 		// if ( tmp == null ) {
 		// log("nsIMsgAccount is null");
 		// break;
@@ -467,35 +457,45 @@ function sendMail(content, msgid) {
 		// log("EXCEPTION: identity not found!");
 		// continue;
 		// }
+		var account;
 		try {
-			aCurrentIdentity = gCurrentIdentity;//accounts.QueryElementAt(i,
-					//Components.interfaces.nsIMsgAccount).defaultIdentity;
+			account = accounts.queryElementAt(i,
+					Components.interfaces.nsIMsgAccount);
 		} catch (ex) {
-			log("EXCEPTION: identity exception: " + ex);
+			log("IDENTITY EXCEPTION: " + ex);
 			continue;
 		}
-		if (aCurrentIdentity == null) {
-			continue;
-		}
-
-		if (aCurrentIdentity.identityName == from) {
-			log("\tsmtp_user\t" + aCurrentIdentity.identityName + " via "
-					+ aCurrentIdentity.smtpServerKey);
-			if (aCurrentIdentity.smtpServerKey != null) {
-				// TODO: get from MAIL_LIST
-				cf.from = from;
-				break;
-			} else {
+		var identities = account.identities;
+		for ( var j = 0; j < identities.length; j++) {
+			log("\tidentity\t#" + j);
+			aCurrentIdentity = identities.queryElementAt(j,
+					Components.interfaces.nsIMsgIdentity);
+			if (aCurrentIdentity == null) {
 				continue;
 			}
-		} else if (i == accounts.Count() - 1) {
-			log("SENDING ERROR: No smtp for " + from
-					+ " using last account smtp (" + aCurrentIdentity.email
-					+ ").");
-			continue;
-		} else {
-			continue;
+			log("\ti\t" + aCurrentIdentity.email );
+			log("\ti\t" + from );
+			if (aCurrentIdentity.email.indexOf(from) != -1 ||
+					from.indexOf(aCurrentIdentity.email) != -1) {
+				log("\tsmtp_user\t" + aCurrentIdentity.identityName + " via "
+						+ aCurrentIdentity.smtpServerKey);
+				if (aCurrentIdentity.smtpServerKey != null) {
+					// TODO: get from MAIL_LIST
+					cf.from = from;
+					i = accounts.length;
+					break;
+				} else {
+					continue;
+				}
+			} else if (i == accounts.length - 1) {
+				log("SENDING ERROR: No smtp for " + from
+						+ " using last account smtp (" + aCurrentIdentity.email
+						+ ").");
+				continue;
+			}
+			log("\ti");
 		}
+
 		// else if ( aCurrentIdentity.smtpServerKey != null ) {
 		// Else sending with the last identity with smtp definied
 		// cf.from = from;
@@ -505,7 +505,7 @@ function sendMail(content, msgid) {
 		// break;
 		// } else {
 		// }
-		// if ( i == accounts.Count() - 1 ) {
+		// if ( i == accounts.length - 1 ) {
 		// log("SENDING ERROR: No smtp for " + from + " using last account smtp
 		// (" + aCurrentIdentity.email + ").");
 		// }
@@ -517,7 +517,7 @@ function sendMail(content, msgid) {
 
 	log("\tfromto\t\t" + cf.from + " >----> " + cf.to);
 	log("\tdetails\t\t" + aCurrentIdentity.smtpServerKey + ","
-			+ aCurrentIdentity.key + "," + accounts.Count());
+			+ aCurrentIdentity.key + "," + accounts.length);
 
 	var msgSend = Components.classes["@mozilla.org/messengercompose/send;1"]
 			.createInstance(Components.interfaces.nsIMsgSend);
@@ -606,11 +606,35 @@ function initFolders() {
 
 	// Looking at renmote folders
 	var allaccounts = accountManager.accounts;
-	var acindex;
+	var thisaccount;
 
-	for (acindex = 0; acindex < allaccounts.Count(); acindex++) {
-		var thisaccount = allaccounts.GetElementAt(acindex);
-		if (thisaccount) {
+	if (allaccounts.queryElementAt) {
+		// Gecko 17+
+		for ( var i = 0; i < allaccounts.length; i++) {
+			thisaccount = allaccounts.queryElementAt(i,
+					Components.interfaces.nsIMsgAccount);
+			thisaccount = thisaccount
+					.QueryInterface(Components.interfaces.nsIMsgAccount);
+			switch (thisaccount.incomingServer.type) {
+			case "pop3":
+			case "imap":
+				var folder = thisaccount.incomingServer.rootFolder;
+				sentFolder.push(thisaccount.defaultIdentity.fccFolder);
+				log("SENT FOLDER(" + sentFolder.length + ") PUSHED "
+						+ thisaccount.defaultIdentity.fccFolder);
+				ProcessThisFolder(folder);
+				break;
+			default:
+				log("MAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
+						+ "]: " + thisaccount);
+				break;
+			}
+		}
+	} else {
+		// Gecko < 17
+		for ( var i = 0; i < allaccounts.length; i++) {
+			thisaccount = allaccounts.queryElementAt(i,
+					Components.interfaces.nsIMsgAccount);
 			thisaccount = thisaccount
 					.QueryInterface(Components.interfaces.nsIMsgAccount);
 			switch (thisaccount.incomingServer.type) {
@@ -629,6 +653,7 @@ function initFolders() {
 			}
 		}
 	}
+
 }
 
 function ProcessThisFolder(folder) {
@@ -658,19 +683,15 @@ function ProcessThisFolder(folder) {
 
 	try {
 		messageenumerator = thisfolder.messages;
-	} catch (e) {
-		log("MONITORING EXCEPTION: " + thisfolder.URI);// log(e);
-	}
-
-	if (messageenumerator) {
 		while (messageenumerator.hasMoreElements()) {
 			var aMsgHdrDb = messageenumerator.getNext().QueryInterface(
 					Components.interfaces.nsIMsgDBHdr);
 			// Process mails
 			ProcessThisMail(aMsgHdrDb);
 		}
+	} catch (e) {
+		log("MONITORING EXCEPTION: " + thisfolder.URI);// log(e);
 	}
-
 }
 
 function ProcessThisMail(actualMsgHdrDb) {

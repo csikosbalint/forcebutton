@@ -45,13 +45,7 @@ var myPrefObserver = {
 }
 myPrefObserver.register();
 
-function onLoad() {
-//	var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-//			.getService(Components.interfaces.nsIPrefService).getBranch(
-//					"extensions.forcebutton.");
-//	prefs.QueryInterface(Components.interfaces.nsIPrefBranch2);
-//	prefs.addObserver("extensions.forcebutton.", this, false);
-	
+function myOnLoad() {
 	// Init config
 	initConfig();
 	// Init to send list
@@ -66,6 +60,7 @@ function daemonThread() {
 	if (FIRST) {
 		FIRST = false;
 		for ( var key in MAIL_LIST) {
+			// Now we start counting for sending
 			MAIL_LIST[key].date = new Date().getTime();
 		}
 		setTimeout('daemonThread()', FREQ_TIME * 60000);
@@ -120,3 +115,5 @@ function daemonThread() {
 	// Loop for infinity and beyond
 	setTimeout('daemonThread()', FREQ_TIME * 60000);
 }
+      window.addEventListener("load", myOnLoad, false);
+//window.onload = onLoad;
