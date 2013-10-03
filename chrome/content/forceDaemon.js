@@ -63,7 +63,7 @@ function daemonThread() {
 			// Now we start counting for sending
 			MAIL_LIST[key].date = new Date().getTime();
 		}
-		setTimeout('daemonThread()', FREQ_TIME * 60000);
+		DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
 		return;
 	}
 
@@ -94,7 +94,7 @@ function daemonThread() {
 				SEND_INTR[key] = send_int;
 			}
 
-			if (old < SEND_INTR[key] * 3600000 / 10) {
+			if (old < SEND_INTR[key] * 3600000 ) {
 				log("(" + (SEND_INTR[key] * 3600000 - old) / 1000 + "s)\t"
 						+ MAIL_LIST[key].messageId + "\t"
 						+ MAIL_LIST[key].subject);
@@ -113,7 +113,7 @@ function daemonThread() {
 	log("------------------------------ Daemon cycle end -------------------------------");
 
 	// Loop for infinity and beyond
-	setTimeout('daemonThread()', FREQ_TIME * 60000);
+	DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
 }
       window.addEventListener("load", myOnLoad, false);
 //window.onload = onLoad;

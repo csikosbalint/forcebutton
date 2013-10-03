@@ -348,6 +348,7 @@ function SendMailNow(aMsgDBHdr) {
 				log("SEND_FAILED\t" + aMsgDBHdr.messageId + "\t"
 						+ aMsgDBHdr.subject);
 			}
+			log("-------------------------------------------------------------------------------");
 		}
 	}
 }
@@ -420,9 +421,9 @@ function sendMail(content, msgid) {
 			.getService(Components.interfaces.nsIMsgAccountManager);
 
 	var accounts = acctMgr.accounts;
+	log("\tsearching\t" + from);
 
 	for ( var i = 0; i < accounts.length; i++) {
-		log("\taccount\t\t#" + i);
 		// try {
 		// var tmp =
 		// accounts.queryElementAt(i,Components.interfaces.nsIMsgAccount)
@@ -462,25 +463,24 @@ function sendMail(content, msgid) {
 			account = accounts.queryElementAt(i,
 					Components.interfaces.nsIMsgAccount);
 		} catch (ex) {
-			log("IDENTITY EXCEPTION: " + ex);
+			log("ACCOUNT EXCEPTION: " + ex);
 			continue;
 		}
+		//log("\taccount\t\t#" + i + "(" + account.key + ")");
 		var identities = account.identities;
 		for ( var j = 0; j < identities.length; j++) {
-			log("\tidentity\t#" + j);
 			aCurrentIdentity = identities.queryElementAt(j,
 					Components.interfaces.nsIMsgIdentity);
+			log("\tidentity\t#" + j + "(" + aCurrentIdentity.fullName + " <"
+					+ aCurrentIdentity.email + ">)");
 			if (aCurrentIdentity == null) {
 				continue;
 			}
-			log("\ti\t" + aCurrentIdentity.email );
-			log("\ti\t" + from );
-			if (aCurrentIdentity.email.indexOf(from) != -1 ||
-					from.indexOf(aCurrentIdentity.email) != -1) {
+			if (aCurrentIdentity.email.indexOf(from) != -1
+					|| from.indexOf(aCurrentIdentity.email) != -1) {
 				log("\tsmtp_user\t" + aCurrentIdentity.identityName + " via "
 						+ aCurrentIdentity.smtpServerKey);
 				if (aCurrentIdentity.smtpServerKey != null) {
-					// TODO: get from MAIL_LIST
 					cf.from = from;
 					i = accounts.length;
 					break;
@@ -493,7 +493,6 @@ function sendMail(content, msgid) {
 						+ ").");
 				continue;
 			}
-			log("\ti");
 		}
 
 		// else if ( aCurrentIdentity.smtpServerKey != null ) {
