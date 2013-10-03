@@ -424,40 +424,6 @@ function sendMail(content, msgid) {
 	log("\tsearching\t" + from);
 
 	for ( var i = 0; i < accounts.length; i++) {
-		// try {
-		// var tmp =
-		// accounts.queryElementAt(i,Components.interfaces.nsIMsgAccount)
-		// if ( tmp == null ) {
-		// log("nsIMsgAccount is null");
-		// break;
-		// }
-		// //tmp.init();
-		// aCurrentIdentity = tmp.defaultIdentity;
-		// if ( aCurrentIdentity == null ) {
-		// log(" aCurrentIdentity is null");
-		// log("identities " + tmp.identities);
-		// log("identity 0 " + tmp.identities.ElementAt(0));
-		// //log("identity 1 " + tmp.identities.ElementAt(1));
-		// //log("identity 2 " + tmp.identities.ElementAt(2));
-		// log("incomingServer " + tmp.incomingServer);
-		// log("key " + tmp.key);
-		// log("defaultIdentity " + tmp.defaultIdentity);
-		//				
-		// break;
-		// } else {
-		// log("identities " + tmp.identities);
-		// log("identity 0 " + tmp.identities.ElementAt(0));
-		//				
-		// log("incomingServer " + tmp.incomingServer);
-		// log("key " + tmp.key);
-		// log("defaultIdentity " + tmp.defaultIdentity);
-		// }
-		//			
-		//			
-		// } catch (ex) {
-		// log("EXCEPTION: identity not found!");
-		// continue;
-		// }
 		var account;
 		try {
 			account = accounts.queryElementAt(i,
@@ -494,20 +460,6 @@ function sendMail(content, msgid) {
 				continue;
 			}
 		}
-
-		// else if ( aCurrentIdentity.smtpServerKey != null ) {
-		// Else sending with the last identity with smtp definied
-		// cf.from = from;
-		// log("ELSE MAIL " + aCurrentIdentity.identityName + " VIA " +
-		// aCurrentIdentity.smtpServerKey + " WITH " + cf.from);
-		// cf.from = aCurrentIdentity.identityName;
-		// break;
-		// } else {
-		// }
-		// if ( i == accounts.length - 1 ) {
-		// log("SENDING ERROR: No smtp for " + from + " using last account smtp
-		// (" + aCurrentIdentity.email + ").");
-		// }
 	}
 	if (aCurrentIdentity == null) {
 		log(" aCurrentIdentity is null");
