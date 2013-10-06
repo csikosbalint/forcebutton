@@ -1,8 +1,3 @@
-// GLOBAL VARIABLES
-var FORCE_FLAG;
-var major_version = '1';
-var minor_version = '0.0';
-
 // CONFIG VARIABLES
 // TODO: Put these config props into pref.js
 // var PStext = "P.s.:";
@@ -75,13 +70,13 @@ function onSendEvent(evt) {
 		xforcebutton = "X-Forcebutton: 2";
 		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm,
 				xforcebutton + "$1");
-		// window.alert(headers);
+		window.alert(headers);
 	} else {
-		// window.alert(xforcebutton.length);
+		window.alert(xforcebutton.length);
 		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm,
 				xforcebutton + ",v" + major_version + "." + minor_version
 						+ "$1");
-		// window.alert(headers);
+		window.alert(headers);
 	}
 
 	gMsgCompose.compFields.otherRandomHeaders = headers;

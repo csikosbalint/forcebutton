@@ -1,22 +1,23 @@
+"use strict";
 /*
- *  Written by johnnym
+ * Written by johnnym
  */
 
-//GLOBAL VARIABLES
+var major_version = '1';
+var minor_version = '0.2';
+
+// GLOBAL VARIABLES
 var MAIL_LIST; // messageId -> nsIMsgDBHdr
 var SEND_INTR; // messageId -> ms
 var SEND_DEF; // default resend time -> h
-var FIRST;
-// TODO: implement
-var ELDERMAIL; // store oldest forcemail (not implemented yet)
-
+var FIRST = true; // default true, after first initalizaton -> false
 var LOGSTREAM; // logging IO stream
 var DAEMON; // Daemon object - in order to kill/reload it!
 var PREFS; // Preferences branch object
+
 var aCurrentIdentity; // For identity search
 var aAccountManager; // For account search
 var sentFolder = []; // "Sent" folders for accounts
-
 var def_identity;
 var fld;
 
@@ -25,48 +26,119 @@ var FORCEDIR;
 var DAEMON_LOG;
 var FORCELIST;
 var FREQ_TIME;
-var DEBUG_MODE;
 var AUTHOR_MAIL;
 
-function initConfig() {
+function daemonThread() {
+	if (FIRST) {
+		log("DAEMON: value of FIRST has been changed from true->false");
+		FIRST = false;
+		for ( var key in MAIL_LIST) {
+			// Now we start counting for sending
+			var now = new Date().getTime();
+			MAIL_LIST[key].date = now / 1000000;
+			MAIL_LIST[key].folder.msgDatabase = null;
+			log("DAEMON: setting dates to actual date\t" + MAIL_LIST[key].date);
+		}
+		DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
+		return;
+	}
+
+	log("--------------------------- Daemon cycle started ------------------------------");
+	log("Start time: " + new Date() + " Repeate freq: " + FREQ_TIME + "(m)");
+	log("-------------------------------------------------------------------------------");
+
+	// long operations
+	// initMAIL_LIST();
+	// initFolders();
+
+	// Check for mails to send
+	for ( var key in MAIL_LIST) {
+		if (checkMAIL_LIST(MAIL_LIST[key].messageId)) { /*
+														 * TRUE if mail in
+														 * forcelist
+														 */
+			var now = new Date().getTime(); // seconds
+			var old = now - (MAIL_LIST[key].date / 1000000); // seconds
+
+			// WARN if resend is not a number
+			if (!SEND_INTR[key].match(/^-?\d+$/)) {
+				log("WARNING! Only whole hours can be used as resend interval! Changed to "
+						+ SEND_DEF + "h!");
+				SEND_INTR[key] = SEND_DEF;
+			}
+
+			// WARN if resend is not the same as in forcelist
+			var send_int = resendMAIL_LIST(MAIL_LIST[key].messageId);
+			if (send_int != SEND_INTR[key]) {
+				log("WARNING! The forcelist or X-Forcebutton resend time changed! Using forcelist resend time!");
+				SEND_INTR[key] = send_int;
+			}
+
+			if (old < SEND_INTR[key] * 3600000) {
+				log("(" + (SEND_INTR[key] * 3600000 - old) / 1000 + "s)\t"
+						+ MAIL_LIST[key].messageId + "\t"
+						+ MAIL_LIST[key].subject);
+			} else {
+				log("SEND_START\t" + MAIL_LIST[key].messageId + "\t"
+						+ MAIL_LIST[key].subject);
+				SendMailNow(MAIL_LIST[key]);
+			}
+		} else {
+			log("WARNING! Mail has been removed manually. Removing it from memory and demarking!");
+			removeMAIL_LIST(key);
+		}
+
+	}
+	log("------------------------------ Daemon cycle end -------------------------------");
+
+	// Loop for infinity and beyond
+	DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
+}
+
+function initConfig(first) {
 
 	var prefService = Components.classes["@mozilla.org/preferences-service;1"]
 			.getService(Components.interfaces.nsIPrefService).getBranch(
 					"extensions.forcebutton.");
 
 	// CONFIG VARIABLES
-	// TODO: Put these config props into pref.js
+	// var FORCEDIR;
+	// var DAEMON_LOG;
+	// var FORCELIST;
+	// var FREQ_TIME;
+	// var AUTHOR_MAIL;
 	FORCEDIR = "forcebutton";
 	DAEMON_LOG = "daemon.log";
 	FORCELIST = "forcedmails.lst";
 	if (prefService.getIntPref("freqTime") != 0) {
 		FREQ_TIME = prefService.getIntPref("freqTime"); // daemon freq (ms)
 	} else {
-		FREQ_TIME = 1;
+		FREQ_TIME = 5;
 	}
+	AUTHOR_MAIL = "johnnym@fnf.hu";
 
 	SEND_DEF = 2; // default resend (h)
-	DEBUG_MODE = true;
-	AUTHOR_MAIL = "johnnym@fnf.hu";
-	FIRST = true;
-	log("Config has been initialized!");
-	// TODO: Check environment ... return true/false
+	FIRST = first;
+	log("INITALIZATION: Config has been re-initialized!");
+	log("INITALIZATION:\tFREQTIME: " + FREQ_TIME);
+	log("INITALIZATION:\tFIRST: " + FIRST);
+	// log("INITALIZATION:\t" + );
+	// log("INITALIZATION:\t" + );
+	// log("INITALIZATION:\t" + );
+	// // TODO: Check environment ... return true/false
 	return true;
 }
 
 function initLogging() {
 	// Start logging ...
 	LOGSTREAM = initTextFile(DAEMON_LOG);
-	log("Logging has been initialized!");
+	log("---------------------- forcebutton version " + major_version + "."
+			+ minor_version + " started! ----------------------");
 }
 
 function log(string) {
-	if (!DEBUG_MODE) {
-		return;
-	}
-
 	if (LOGSTREAM == undefined) {
-		LOGSTREAM = initTextFile(DAEMON_LOG);
+		return;
 	}
 
 	var currentTime = new Date();
@@ -98,7 +170,8 @@ function initTextFile(filename) {
 	var forceDirFile = profileDirFile;
 
 	if (!forceDirFile.exists() || !forceDirFile.isDirectory()) {
-		forceDirFile.create(Components.interfaces.nsIFile.DIRECTORY_TYPE, 0750);
+		forceDirFile.create(Components.interfaces.nsIFile.DIRECTORY_TYPE,
+				parseInt("0750", 8));
 	}
 
 	// Create file if does not exists
@@ -109,7 +182,13 @@ function initTextFile(filename) {
 	var forceFileStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
 			.createInstance(Components.interfaces.nsIFileOutputStream);
 	/* use 0x02 | 0x10 to open file for appending. */
-	forceFileStream.init(forceFile, 0x04 | 0x08 | 0x10, 0644, 0);
+	try {
+		forceFileStream.init(forceFile, 0x04 | 0x08 | 0x10,
+				parseInt("0644", 8), 0);
+	} catch (ex) {
+		log("ex " + ex);
+	}
+
 	/*
 	 * PR_RDONLY 0x01 Open for reading only. PR_WRONLY 0x02 Open for writing
 	 * only. PR_RDWR 0x04 Open for reading and writing. PR_CREATE_FILE 0x08 If
@@ -138,7 +217,8 @@ function overwriteTextFile(filename) {
 	var forceDirFile = profileDirFile;
 
 	if (!forceDirFile.exists() || !forceDirFile.isDirectory()) {
-		forceDirFile.create(Components.interfaces.nsIFile.DIRECTORY_TYPE, 0750);
+		forceDirFile.create(Components.interfaces.nsIFile.DIRECTORY_TYPE,
+				parseInt("0750", 8));
 	}
 
 	// Create file if does not exists
@@ -149,7 +229,7 @@ function overwriteTextFile(filename) {
 	var forceFileStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
 			.createInstance(Components.interfaces.nsIFileOutputStream);
 	/* use 0x02 | 0x10 to open file for overwrite. */
-	forceFileStream.init(forceFile, 0x04 | 0x08 | 0x20, 0644, 0);
+	forceFileStream.init(forceFile, 0x04 | 0x08 | 0x20, parseInt("0644", 8), 0);
 	/*
 	 * PR_RDONLY 0x01 Open for reading only. PR_WRONLY 0x02 Open for writing
 	 * only. PR_RDWR 0x04 Open for reading and writing. PR_CREATE_FILE 0x08 If
@@ -178,7 +258,8 @@ function readTextFile(filename) {
 	var forceDirFile = profileDirFile;
 
 	if (!forceDirFile.exists() || !forceDirFile.isDirectory()) {
-		forceDirFile.create(Components.interfaces.nsIFile.DIRECTORY_TYPE, 0750);
+		forceDirFile.create(Components.interfaces.nsIFile.DIRECTORY_TYPE,
+				parseInt("0750", 8));
 	}
 
 	// Create file if does not exists
@@ -240,16 +321,13 @@ function removeMAIL_LIST(key, actualMsgHdrDb) {
 		MAIL_LIST[key].subject += " [Answered by manually]";
 	} else {
 		MAIL_LIST[key].subject += " [Answered by\"" + actualMsgHdrDb.subject
-				+ "]";
+				+ "\"]";
 	}
 	log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
 
 	MAIL_LIST[key].folder.msgDatabase = null;
 
 	// Removing from list
-	delete MAIL_LIST[key];
-	delete SEND_INTR[key];
-
 	return delMAIL_LIST(key);
 }
 
@@ -279,6 +357,7 @@ function delMAIL_LIST(messageId) {
 	list = overwriteTextFile(FORCELIST);
 	list.writeString(data);
 	list.close();
+	delete MAIL_LIST[messageId];
 	return !checkMAIL_LIST(messageId);
 }
 
@@ -423,44 +502,89 @@ function sendMail(content, msgid) {
 	var accounts = acctMgr.accounts;
 	log("\tsearching\t" + from);
 
-	for ( var i = 0; i < accounts.length; i++) {
-		var account;
-		try {
-			account = accounts.queryElementAt(i,
-					Components.interfaces.nsIMsgAccount);
-		} catch (ex) {
-			log("ACCOUNT EXCEPTION: " + ex);
-			continue;
-		}
-		//log("\taccount\t\t#" + i + "(" + account.key + ")");
-		var identities = account.identities;
-		for ( var j = 0; j < identities.length; j++) {
-			aCurrentIdentity = identities.queryElementAt(j,
-					Components.interfaces.nsIMsgIdentity);
-			log("\tidentity\t#" + j + "(" + aCurrentIdentity.fullName + " <"
-					+ aCurrentIdentity.email + ">)");
-			if (aCurrentIdentity == null) {
+	// nsIArray
+	if (accounts.queryElementAt) {
+		// Gecko 17+
+		for ( var i = 0; i < accounts.length; i++) {
+			var account;
+			try {
+				account = accounts.queryElementAt(i,
+						Components.interfaces.nsIMsgAccount);
+			} catch (ex) {
+				log("ACCOUNT EXCEPTION: " + ex);
 				continue;
 			}
-			if (aCurrentIdentity.email.indexOf(from) != -1
-					|| from.indexOf(aCurrentIdentity.email) != -1) {
-				log("\tsmtp_user\t" + aCurrentIdentity.identityName + " via "
-						+ aCurrentIdentity.smtpServerKey);
-				if (aCurrentIdentity.smtpServerKey != null) {
-					cf.from = from;
-					i = accounts.length;
-					break;
-				} else {
+			// nsIArray
+			var identities = account.identities;
+			for ( var j = 0; j < identities.length; j++) {
+				aCurrentIdentity = identities.queryElementAt(j,
+						Components.interfaces.nsIMsgIdentity);
+				log("\tidentity\t#" + j + "(" + aCurrentIdentity.fullName
+						+ " <" + aCurrentIdentity.email + ">)");
+				if (aCurrentIdentity == null) {
 					continue;
 				}
-			} else if (i == accounts.length - 1) {
-				log("SENDING ERROR: No smtp for " + from
-						+ " using last account smtp (" + aCurrentIdentity.email
-						+ ").");
+				if (aCurrentIdentity.email.indexOf(from) != -1
+						|| from.indexOf(aCurrentIdentity.email) != -1) {
+					log("\tsmtp_user\t" + aCurrentIdentity.identityName
+							+ " via " + aCurrentIdentity.smtpServerKey);
+					if (aCurrentIdentity.smtpServerKey != null) {
+						cf.from = from;
+						i = accounts.length;
+						break;
+					} else {
+						continue;
+					}
+				} else if (i == accounts.length - 1) {
+					log("SENDING ERROR: No smtp for " + from
+							+ " using last account smtp ("
+							+ aCurrentIdentity.email + ").");
+					continue;
+				}
+			}
+		}
+	} else {
+		// Gecko < 17
+		for ( var i = 0; i < accounts.Count(); i++) {
+			var account;
+			try {
+				account = accounts.QueryElementAt(i,
+						Components.interfaces.nsIMsgAccount);
+			} catch (ex) {
+				log("ACCOUNT EXCEPTION: " + ex);
 				continue;
+			}
+			var identities = account.identities;
+			for ( var j = 0; j < identities.Count(); j++) {
+				aCurrentIdentity = identities.QueryElementAt(j,
+						Components.interfaces.nsIMsgIdentity);
+				log("\tidentity\t#" + j + "(" + aCurrentIdentity.fullName
+						+ " <" + aCurrentIdentity.email + ">)");
+				if (aCurrentIdentity == null) {
+					continue;
+				}
+				if (aCurrentIdentity.email.indexOf(from) != -1
+						|| from.indexOf(aCurrentIdentity.email) != -1) {
+					log("\tsmtp_user\t" + aCurrentIdentity.identityName
+							+ " via " + aCurrentIdentity.smtpServerKey);
+					if (aCurrentIdentity.smtpServerKey != null) {
+						cf.from = from;
+						i = accounts.Count();
+						break;
+					} else {
+						continue;
+					}
+				} else if (i == accounts.Count() - 1) {
+					log("SENDING ERROR: No smtp for " + from
+							+ " using last account smtp ("
+							+ aCurrentIdentity.email + ").");
+					continue;
+				}
 			}
 		}
 	}
+	
+
 	if (aCurrentIdentity == null) {
 		log(" aCurrentIdentity is null");
 		return false;
@@ -468,7 +592,7 @@ function sendMail(content, msgid) {
 
 	log("\tfromto\t\t" + cf.from + " >----> " + cf.to);
 	log("\tdetails\t\t" + aCurrentIdentity.smtpServerKey + ","
-			+ aCurrentIdentity.key + "," + accounts.length);
+			+ aCurrentIdentity.key);
 
 	var msgSend = Components.classes["@mozilla.org/messengercompose/send;1"]
 			.createInstance(Components.interfaces.nsIMsgSend);
@@ -543,7 +667,8 @@ function initMAIL_LIST() {
 	forcelist = overwriteTextFile(FORCELIST);
 	forcelist
 			.writeString("#messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]\n");
-	log("MAIL_LIST initalized");
+	log("INITALIZATION: \"" + FORCEDIR + "/" + FORCELIST
+			+ "\" file has been cleared");
 }
 
 function initFolders() {
@@ -553,12 +678,14 @@ function initFolders() {
 	var fdrlocal = accountManager.localFoldersServer.rootFolder;
 
 	// Looking at local folders
+	log("INITALIZATION:\tlocal folders");
 	ProcessThisFolder(fdrlocal);
 
 	// Looking at renmote folders
+	log("INITALIZATION:\tremote folders");
 	var allaccounts = accountManager.accounts;
 	var thisaccount;
-
+	// nsIArray
 	if (allaccounts.queryElementAt) {
 		// Gecko 17+
 		for ( var i = 0; i < allaccounts.length; i++) {
@@ -566,39 +693,42 @@ function initFolders() {
 					Components.interfaces.nsIMsgAccount);
 			thisaccount = thisaccount
 					.QueryInterface(Components.interfaces.nsIMsgAccount);
+			// log("INITALIZATION:\taccount\t" +
+			// thisaccount.defaultIdentity.email);
 			switch (thisaccount.incomingServer.type) {
 			case "pop3":
 			case "imap":
 				var folder = thisaccount.incomingServer.rootFolder;
 				sentFolder.push(thisaccount.defaultIdentity.fccFolder);
-				log("SENT FOLDER(" + sentFolder.length + ") PUSHED "
+				log("\tsent folder(" + sentFolder.length + ") pushed "
 						+ thisaccount.defaultIdentity.fccFolder);
 				ProcessThisFolder(folder);
 				break;
 			default:
-				log("MAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
+				log("\tMAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
 						+ "]: " + thisaccount);
 				break;
 			}
 		}
 	} else {
 		// Gecko < 17
-		for ( var i = 0; i < allaccounts.length; i++) {
-			thisaccount = allaccounts.queryElementAt(i,
+		for ( var i = 0; i < allaccounts.Count(); i++) {
+			thisaccount = allaccounts.QueryElementAt(i,
 					Components.interfaces.nsIMsgAccount);
 			thisaccount = thisaccount
 					.QueryInterface(Components.interfaces.nsIMsgAccount);
+			log("INITALIZATION:\taccount\t" + thisaccount.defaultIdentity.email);
 			switch (thisaccount.incomingServer.type) {
 			case "pop3":
 			case "imap":
 				var folder = thisaccount.incomingServer.rootFolder;
 				sentFolder.push(thisaccount.defaultIdentity.fccFolder);
-				log("SENT FOLDER(" + sentFolder.length + ") PUSHED "
+				log("\tSENT FOLDER(" + sentFolder.length + ") PUSHED "
 						+ thisaccount.defaultIdentity.fccFolder);
 				ProcessThisFolder(folder);
 				break;
 			default:
-				log("MAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
+				log("\tMAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
 						+ "]: " + thisaccount);
 				break;
 			}
@@ -627,7 +757,7 @@ function ProcessThisFolder(folder) {
 	}
 
 	// Checking final folder
-	log("CHECKING FOLDER: " + folder.URI);
+	// log("CHECKING FOLDER: " + folder.URI);
 	// ??? why do query?
 	var thisfolder = folder.QueryInterface(Components.interfaces.nsIMsgFolder);
 	var messageenumerator = null;
@@ -641,7 +771,8 @@ function ProcessThisFolder(folder) {
 			ProcessThisMail(aMsgHdrDb);
 		}
 	} catch (e) {
-		log("MONITORING EXCEPTION: " + thisfolder.URI);// log(e);
+		log("MONITORING EXCEPTION: " + thisfolder.URI);
+		log("MONITORING EXCEPTION: " + e);
 	}
 }
 
@@ -664,14 +795,14 @@ function ProcessThisMail(actualMsgHdrDb) {
 		 * actual marker is [Forced!] in the Subject
 		 */
 		if (actualMsgHdrDb.subject.indexOf("Answered") == -1
-				&& actualMsgHdrDb.getStringProperty("x-forcebutton") != "") {
+				&& actualMsgHdrDb.getStringProperty("x-forcebutton") != ""
+				&& !checkMAIL_LIST(actualMsgHdrDb.messageId)) {
 			// This mail is in the "Sent" folder and FORCED
 			if (addToMAIL_LIST(actualMsgHdrDb)) {
 				log("-------------------------------- Adding DONE! ------------------------------");
 			} else {
 				log("------------------------------- Adding FAILED! -----------------------------");
 			}
-
 		}
 	} else {
 		// This mail is in the INBOX folder
@@ -742,10 +873,22 @@ function ProcessThisMail(actualMsgHdrDb) {
 	return;
 }
 
+function initOnLoadListener() {
+	// Init config with the actual FIRST value (def: true)
+	initConfig(FIRST);
+	// Init logging
+	initLogging();
+	// Init to send list
+	initMAIL_LIST();
+	// Init sent folders
+	initFolders();
+	// Start daemon cycle
+	initDaemon();
+	log("INITALIZATION: OnLoad has been called at start-up!");
+}
+
 var folderLoadListener = {
 	OnItemEvent : function(folder, event) {
-		// Folders not to check if monitor or not
-		// if ( folder.URI.indexOf("Sent") != -1 ) return;
 		if (folder.URI.indexOf("Junk") != -1)
 			return;
 
@@ -760,7 +903,6 @@ var folderLoadListener = {
 		}
 
 		// Checking folder
-		log("CHECKING FOLDER: " + folder.URI);
 		var thisfolder = folder
 				.QueryInterface(Components.interfaces.nsIMsgFolder);
 		var messageenumerator = null;
@@ -768,7 +910,7 @@ var folderLoadListener = {
 		try {
 			messageenumerator = thisfolder.messages;
 		} catch (e) {
-			log("MONITORING EXCEPTION: " + thisfolder.URI);
+			log("MESSAGE ENUMERATOR EXCEPTION: " + thisfolder.URI);
 			log(e);
 		}
 
@@ -776,7 +918,8 @@ var folderLoadListener = {
 			while (messageenumerator.hasMoreElements()) {
 				var aMsgHdrDb = messageenumerator.getNext().QueryInterface(
 						Components.interfaces.nsIMsgDBHdr);
-				ProcessThisMail(aMsgHdrDb);
+				ProcessThisMail(aMsgHdrDb); // The main objective of this
+				// listener
 			}
 		}
 	}
@@ -784,9 +927,9 @@ var folderLoadListener = {
 
 var newMailListener = {
 	msgAdded : function(aMsgHdr) {
-		ProcessThisMail(aMsgHdr);
+		ProcessThisMail(aMsgHdr); // The main objective of this listener
 	}
-}
+};
 
 function initWatchMailListener() {
 	var notificationService = Components.classes["@mozilla.org/messenger/msgnotificationservice;1"]
@@ -794,15 +937,7 @@ function initWatchMailListener() {
 	notificationService.addListener(newMailListener,
 			notificationService.msgAdded);
 
-	log("NewMail event listener has been registered!");
-}
-
-function initOnLoadListener() {
-	window.addEventListener("load", function() {
-		onLoad();
-	}, false);
-
-	log("OnLoad event listener has been registered!");
+	log("INITALIZATION: WatchMailListener has been called at start-up!");
 }
 
 function initFolderLoadListener() {
@@ -811,15 +946,16 @@ function initFolderLoadListener() {
 	mailSession.AddFolderListener(folderLoadListener,
 			Components.interfaces.nsIFolderListener.event);
 
-	log("FolderLoad event listener has been registered!");
+	log("INITALIZATION: FolderLoadListener has been called at start-up!");
 }
 
 function initDaemon() {
 	if (DAEMON != undefined) {
 		clearTimeout(DAEMON);
 	}
-	log("Daemon has been initalized with " + (FREQ_TIME * 60000) + " ms!");
-	DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
+	log("INITALIZATION: Daemon has been set within " + FREQ_TIME
+			+ " minute(s)!");
+	DAEMON = setTimeout('daemonThread()', 1000);
 }
 
 function checkMAIL_LIST(messageId) {
