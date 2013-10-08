@@ -14,10 +14,11 @@ var FIRST = true; // default true, after first initalizaton -> false
 var LOGSTREAM; // logging IO stream
 var DAEMON; // Daemon object - in order to kill/reload it!
 var PREFS; // Preferences branch object
+var sentFolder = []; // "Sent" folders for accounts
+var SENT = new Array();
 
 var aCurrentIdentity; // For identity search
 var aAccountManager; // For account search
-var sentFolder = []; // "Sent" folders for accounts
 var def_identity;
 var fld;
 
@@ -583,7 +584,6 @@ function sendMail(content, msgid) {
 			}
 		}
 	}
-	
 
 	if (aCurrentIdentity == null) {
 		log(" aCurrentIdentity is null");
@@ -698,11 +698,11 @@ function initFolders() {
 			switch (thisaccount.incomingServer.type) {
 			case "pop3":
 			case "imap":
-				var folder = thisaccount.incomingServer.rootFolder;
+				var rootfolder = thisaccount.incomingServer.rootFolder;
 				sentFolder.push(thisaccount.defaultIdentity.fccFolder);
-				log("\tsent folder(" + sentFolder.length + ") pushed "
-						+ thisaccount.defaultIdentity.fccFolder);
-				ProcessThisFolder(folder);
+				log(thisaccount.defaultIdentity.fccFolder);
+				ProcessThisFolder(rootfolder);
+				log("processed");
 				break;
 			default:
 				log("\tMAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
@@ -721,11 +721,9 @@ function initFolders() {
 			switch (thisaccount.incomingServer.type) {
 			case "pop3":
 			case "imap":
-				var folder = thisaccount.incomingServer.rootFolder;
+				var rootfolder = thisaccount.incomingServer.rootFolder;
 				sentFolder.push(thisaccount.defaultIdentity.fccFolder);
-				log("\tSENT FOLDER(" + sentFolder.length + ") PUSHED "
-						+ thisaccount.defaultIdentity.fccFolder);
-				ProcessThisFolder(folder);
+				ProcessThisFolder(rootfolder);
 				break;
 			default:
 				log("\tMAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
@@ -756,9 +754,24 @@ function ProcessThisFolder(folder) {
 		}
 	}
 
-	// Checking final folder
-	// log("CHECKING FOLDER: " + folder.URI);
-	// ??? why do query?
+	// Checking leaf folder
+	// this coould be slow, checking for
+	var found = false;
+	for ( var i = 0; i < sentFolder.length && !found; i++) {
+		log("\tchecking []" + sentFolder[i] + " vs nsIMsgfolder " + folder.URI);
+		if (folder.URI.indexOf(sentFolder[i]) != -1) { // contains
+			for ( var j = 0; j < SENT.length && !found; j++) {
+				if (SENT[j] == folder) {
+					found = true;
+				}
+			}
+			if (!found) {
+				log("\tsent folder (" + sentFolder.length + ") pushed " + folder.URI);
+				SENT.push(folder);
+				found = true;
+			}
+		}
+	}
 	var thisfolder = folder.QueryInterface(Components.interfaces.nsIMsgFolder);
 	var messageenumerator = null;
 
@@ -791,9 +804,6 @@ function ProcessThisMail(actualMsgHdrDb) {
 
 	// if ( uuid.indexOf("forcebutton.v0") != -1 ) {
 	if (sent) {
-		/*
-		 * actual marker is [Forced!] in the Subject
-		 */
 		if (actualMsgHdrDb.subject.indexOf("Answered") == -1
 				&& actualMsgHdrDb.getStringProperty("x-forcebutton") != ""
 				&& !checkMAIL_LIST(actualMsgHdrDb.messageId)) {
@@ -818,48 +828,55 @@ function ProcessThisMail(actualMsgHdrDb) {
 			 * actualMsgHdrDb.subject.split(":")[1].indexOf(MAIL_LIST[key].subject) !=
 			 * -1) {
 			 */
+			var match;
+
+			/* subject match is mandatorry */
 			if (actualMsgHdrDb.subject != undefined
-					&& MAIL_LIST[key].subject.indexOf(actualMsgHdrDb.subject) != -1
+					&& MAIL_LIST[key].subject == actualMsgHdrDb.subject
 					&& actualMsgHdrDb.subject.length > 0) {
-				// log("------------- subject match ");
-				// log(MAIL_LIST[key].subject + " == " +
-				// actualMsgHdrDb.subject);
-				vote++;
+				match += "------------- subject match ";
+				// log(MAIL_LIST[key].subject + " == " + atualMsgHdrDb.subject);
+				vote += 2;
+			} else {
+				return;
 			}
+			
 
 			if (actualMsgHdrDb.messageSize > MAIL_LIST[key].messageSize) {
-				// log("------------- messageSize match ");
+				match += ("------------- messageSize match ");
 				// log(actualMsgHdrDb.messageSize + " > "
 				// + MAIL_LIST[key].messageSize);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.lineCount > MAIL_LIST[key].lineCount) {
-				// log("------------- lineCount match ");
-				// log(actualMsgHdrDb.lineCount + " > "
-				// + MAIL_LIST[key].lineCount);
+				match += ("------------- lineCount match ");
+				// log(actualMsgHdrDb.lineCount + " > " +
+				// MAIL_LIST[key].lineCount);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.dateInSeconds > MAIL_LIST[key].dateInSeconds) {
-				// log("------------- dateInSeconds match ");
+				match += ("------------- dateInSeconds match ");
 				// log(actualMsgHdrDb.dateInSeconds + " > "
 				// + MAIL_LIST[key].dateInSeconds);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.author.indexOf(MAIL_LIST[key].recipients) != -1) {
-				// log("------------- author match ");
-				// log(actualMsgHdrDb.author + " == "
-				// + MAIL_LIST[key].recipients);
+				match += ("------------- author match ");
+				// log(actualMsgHdrDb.author + " == " +
+				// MAIL_LIST[key].recipients);
 				vote++;
 			}
 
 			// test if this is an answer
 			// log("------------- vote: " + vote + " with \""
 			// + actualMsgHdrDb.subject + "\"-------------");
-			if (vote > 3) {
-				// log("VOTE: " + vote);
+			if (vote > 4) {
+				log("VOTE: " + vote);
+				log("\tmatch\n");
+				log(match);
 				if (removeMAIL_LIST(key, actualMsgHdrDb)) {
 					log("------------------------------- Remove DONE! -----------------------------");
 				} else {
