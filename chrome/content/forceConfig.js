@@ -13,6 +13,7 @@ var SEND_DEF; // default resend time -> h
 var FIRST = true; // default true, after first initalizaton -> false
 var LOGSTREAM; // logging IO stream
 var DAEMON; // Daemon object - in order to kill/reload it!
+var SENTD; // Daemon object - in order to kill/reload it!
 var PREFS; // Preferences branch object
 var sentFolder = []; // "Sent" folders for accounts
 var SENT = new Array();
@@ -732,8 +733,15 @@ function initFolders() {
 			}
 		}
 	}
-
 }
+
+function daemonSentCheck() {
+	for ( var i = 0; i < SENT.length; i++) {
+		ProcessThisFolder(SENT[i]);
+	}
+	setTimeout('daemonSentCheck()', 60000);
+}
+
 
 function ProcessThisFolder(folder) {
 
@@ -758,7 +766,7 @@ function ProcessThisFolder(folder) {
 	// this coould be slow, checking for
 	var found = false;
 	for ( var i = 0; i < sentFolder.length && !found; i++) {
-		log("\tchecking []" + sentFolder[i] + " vs nsIMsgfolder " + folder.URI);
+		//log("\tchecking []" + sentFolder[i] + " vs nsIMsgfolder " + folder.URI);
 		if (folder.URI.indexOf(sentFolder[i]) != -1) { // contains
 			for ( var j = 0; j < SENT.length && !found; j++) {
 				if (SENT[j] == folder) {
@@ -970,9 +978,13 @@ function initDaemon() {
 	if (DAEMON != undefined) {
 		clearTimeout(DAEMON);
 	}
+	if (SENTD != undefined) {
+		clearTimeout(SENTD);
+	}
 	log("INITALIZATION: Daemon has been set within " + FREQ_TIME
 			+ " minute(s)!");
 	DAEMON = setTimeout('daemonThread()', 1000);
+	SENTD = setTimeout('daemonSentCheck()', 1000);
 }
 
 function checkMAIL_LIST(messageId) {

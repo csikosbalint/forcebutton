@@ -1,6 +1,6 @@
 initConfig(false);
-//initMAIL_LIST();
-//initFolders();
+initMAIL_LIST();
+initFolders();
 /*
  * https://developer.mozilla.org/en-US/docs/XUL/listbox
  */
