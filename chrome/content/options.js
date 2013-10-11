@@ -28,15 +28,15 @@ if (list instanceof Components.interfaces.nsIUnicharLineInputStream) {
 		 */
 		
 		cell = document.createElement('listcell');
-		cell.setAttribute('label', line.value.split(",")[1]);
+		cell.setAttribute('label', line.value.split("|")[1]);
 		row.appendChild(cell);
 
 		cell = document.createElement('listcell');
-		cell.setAttribute('label', line.value.split(",")[2]);
+		cell.setAttribute('label', line.value.split("|")[2]);
 		row.appendChild(cell);
 		
 		cell = document.createElement('listcell');
-		cell.setAttribute('label', line.value.split(",")[0]);
+		cell.setAttribute('label', line.value.split("|")[0]);
 		row.appendChild(cell);
 
 		theList.appendChild(row);

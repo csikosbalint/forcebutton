@@ -11,6 +11,7 @@
     <em:aboutURL>chrome://forcebutton/content/about.xul</em:aboutURL>
     <em:optionsURL>chrome://forcebutton/content/options.xul</em:optionsURL>
     <em:homepageURL>https://devel.fnf.hu/</em:homepageURL>
+    <em:unpack>true</em:unpack>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id> <!-- Thunderbird -->
@@ -24,13 +25,6 @@
             <em:name>Forcebutton</em:name>
             <em:description>
                 This extension is for corporate environment, where man needs to send every e-mail more many times in order to get an answer.
-            </em:description>
-        </Description>
-        <Description>
-            <em:locale>hu-HU</em:locale>
-            <em:name>Noszogató Gomb</em:name>
-            <em:description>
-                Ezt a kiegészítőt a nagyvállalti kúltúra inspirálta. Egy nap akár többször is elküldi ugyanazt a mail-t a címzetnek beavatkozás nélkül.
             </em:description>
         </Description>
     </em:localized>

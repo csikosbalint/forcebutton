@@ -1,7 +1,6 @@
 content   forcebutton                 chrome/content/
 skin      forcebutton   classic/1.0   chrome/skin/
 locale    forcebutton   en-US         chrome/locale/en-US/
-locale    forcebutton   hu-HU         chrome/locale/hu-HU/
 
 overlay chrome://messenger/content/messenger.xul                            chrome://forcebutton/content/overlay.xul
 overlay chrome://messenger/content/messengercompose/messengercompose.xul    chrome://forcebutton/content/forceButton.xul

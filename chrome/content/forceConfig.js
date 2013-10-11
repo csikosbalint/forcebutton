@@ -49,7 +49,7 @@ function daemonThread() {
 			// MAIL_LIST[key].date);
 		}
 		DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
-		setTimeout('initFolders()', 30000); // half minute later check if there
+		setTimeout('initFolders()', 60000*5); // half minute later check if there
 		// is a new mail written to the
 		// database
 		return;
@@ -85,7 +85,7 @@ function daemonThread() {
 				log("WARNING! The forcelist or X-Forcebutton resend time changed! Using forcelist resend time!");
 				SEND_INTR[key] = send_int;
 			}
-			if (old < SEND_INTR[key] * 60 * 60 * 1000 * 1000) { // microseconds
+			if (old < SEND_INTR[key] * 60 * 60 * 1000 * 1000 ) { // microseconds
 				log("(" + (SEND_INTR[key] * 60 * 60 * 1000 * 1000 - old)
 						+ "μs)\t" + MAIL_LIST[key].messageId + "\t"
 						+ MAIL_LIST[key].subject);
@@ -402,8 +402,8 @@ function addToMAIL_LIST(actualMsgHdrDb) {
 		/*
 		 * messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]
 		 */
-		list.writeString(actualMsgHdrDb.messageId + ","
-				+ actualMsgHdrDb.subject + ","
+		list.writeString(actualMsgHdrDb.messageId + "|"
+				+ actualMsgHdrDb.subject + "|"
 				+ SEND_INTR[actualMsgHdrDb.messageId] + "\n");
 		list.close();
 	}
@@ -479,7 +479,7 @@ function sendMail(content, msgid) {
 	tempDir.append(msgid + ".eml");
 
 	var sfile = Components.classes["@mozilla.org/file/local;1"]
-			.createInstance(Components.interfaces.nsILocalFile);
+			.createInstance(Components.interfaces.nsIFile);
 	sfile.initWithPath(tempDir.path);
 	log("\tfile written\t" + tempDir.path);
 	try {
@@ -762,7 +762,7 @@ function daemonSentCheck() {
 	for ( var i = 0; i < SENT.length; i++) {
 		ProcessThisFolder(SENT[i]);
 	}
-	setTimeout('daemonSentCheck()', 60000);
+	setTimeout('daemonSentCheck()', 60000*15);
 }
 
 function ProcessThisFolder(folder) {
@@ -936,6 +936,7 @@ function initOnLoadListener() {
 
 var folderLoadListener = {
 	OnItemEvent : function(folder, event) {
+		return;
 		// log("FOLDER LOAD EVENT:\t" + folder.prettyName);
 		if (folder.URI.indexOf("Junk") != -1)
 			return;
@@ -1052,7 +1053,7 @@ function resendMAIL_LIST(messageId) {
 				continue;
 			}
 			if (line.value.indexOf(messageId) == 0) {
-				return line.value.split(",")[2];
+				return line.value.split("|")[2];
 			}
 
 		} while (cont);
