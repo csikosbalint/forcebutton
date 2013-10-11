@@ -53,15 +53,6 @@ function onSendEvent(evt) {
 	if (headers.indexOf("X-Forcebutton: ") == -1) {
 		return; // Do nothing ...
 	}
-	var from = gCurrentIdentity.email;
-	if (from.indexOf("yahoo") = -1) {
-		log("Sorry, Yahoo account not supported yet!");
-		window.alert("Sorry, Yahoo account not supported yet!");
-		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm, "");
-		gMsgCompose.compFields.otherRandomHeaders = headers;
-		return
-
-	}
 	/*
 	 * check and normalize X-Forcebutton tag values
 	 */
@@ -70,13 +61,10 @@ function onSendEvent(evt) {
 		xforcebutton = "X-Forcebutton: 2";
 		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm,
 				xforcebutton + "$1");
-		window.alert(headers);
 	} else {
-		window.alert(xforcebutton.length);
 		headers = headers.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm,
 				xforcebutton + ",v" + major_version + "." + minor_version
 						+ "$1");
-		window.alert(headers);
 	}
 
 	gMsgCompose.compFields.otherRandomHeaders = headers;
@@ -152,9 +140,6 @@ function onSendEvent(evt) {
 	// window.alert("Cannot add mail to list!...");
 	// }
 }
-/*
- * 
- */
 
 var columnHandler = {
 	getCellText : function(row, col) {

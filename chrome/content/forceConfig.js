@@ -34,10 +34,15 @@ function daemonThread() {
 	if (FIRST) {
 		log("DAEMON: value of FIRST has been changed from true->false");
 		FIRST = false;
+		initMAIL_LIST();
+		initFolders();
 		for ( var key in MAIL_LIST) {
 			// Now we start counting for sending
-			var now = new Date().getTime();
-			MAIL_LIST[key].date = now / 1000000;
+			log("DAEMON: setting dates from the date\t" + MAIL_LIST[key].date);
+			var now = new Date().getTime(); // milliseconds
+			log("DAEMON: now: " + now);
+			log("DAEMON: now*1000: " + (now * 1000)); // microseconds
+			MAIL_LIST[key].date = now * 1000;
 			MAIL_LIST[key].folder.msgDatabase = null;
 			log("DAEMON: setting dates to actual date\t" + MAIL_LIST[key].date);
 		}
@@ -59,8 +64,8 @@ function daemonThread() {
 														 * TRUE if mail in
 														 * forcelist
 														 */
-			var now = new Date().getTime(); // seconds
-			var old = now - (MAIL_LIST[key].date / 1000000); // seconds
+			var now = new Date().getTime(); // milliseconds
+			var old = now * 1000 - MAIL_LIST[key].date; // microseconds
 
 			// WARN if resend is not a number
 			if (!SEND_INTR[key].match(/^-?\d+$/)) {
@@ -75,15 +80,16 @@ function daemonThread() {
 				log("WARNING! The forcelist or X-Forcebutton resend time changed! Using forcelist resend time!");
 				SEND_INTR[key] = send_int;
 			}
-
-			if (old < SEND_INTR[key] * 3600000) {
-				log("(" + (SEND_INTR[key] * 3600000 - old) / 1000 + "s)\t"
+			if (old < SEND_INTR[key] *  60 * 60 * 1000 *1000 ) { // microseconds
+				log("(" + (SEND_INTR[key] *  60 * 60 * 1000 *1000 - old) + "μs)\t"
 						+ MAIL_LIST[key].messageId + "\t"
 						+ MAIL_LIST[key].subject);
 			} else {
+				log("-------------------------------------------------------------------------------");
 				log("SEND_START\t" + MAIL_LIST[key].messageId + "\t"
 						+ MAIL_LIST[key].subject);
 				SendMailNow(MAIL_LIST[key]);
+				log("-------------------------------------------------------------------------------");
 			}
 		} else {
 			log("WARNING! Mail has been removed manually. Removing it from memory and demarking!");
@@ -429,7 +435,6 @@ function SendMailNow(aMsgDBHdr) {
 				log("SEND_FAILED\t" + aMsgDBHdr.messageId + "\t"
 						+ aMsgDBHdr.subject);
 			}
-			log("-------------------------------------------------------------------------------");
 		}
 	}
 }
@@ -438,8 +443,8 @@ function sendMail(content, msgid) {
 	// Modify "Date:" in message body and db
 	content = content.replace(/^Date:.*$/m, "Date: "
 			+ FormatDateTime(new Date(), true) + "");
-	var now = new Date().getTime();
-	MAIL_LIST[msgid].date = now * 1000000;
+	var now = new Date().getTime(); // milliseconds
+	MAIL_LIST[msgid].date = now * 1000; // microseconds
 
 	// Remove marker;
 	log("\tmarker\t\tremoved");
@@ -703,7 +708,6 @@ function initFolders() {
 				sentFolder.push(thisaccount.defaultIdentity.fccFolder);
 				log(thisaccount.defaultIdentity.fccFolder);
 				ProcessThisFolder(rootfolder);
-				log("processed");
 				break;
 			default:
 				log("\tMAIL ACCOUNT SKIPPED[" + thisaccount.incomingServer.type
