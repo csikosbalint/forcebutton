@@ -32,26 +32,31 @@ var AUTHOR_MAIL;
 
 function daemonThread() {
 	if (FIRST) {
-		log("DAEMON: value of FIRST has been changed from true->false");
+		// log("DAEMON: value of FIRST has been changed from true->false");
 		FIRST = false;
 		initMAIL_LIST();
 		initFolders();
 		for ( var key in MAIL_LIST) {
 			// Now we start counting for sending
-			log("DAEMON: setting dates from the date\t" + MAIL_LIST[key].date);
+			// log("DAEMON: setting dates from the date\t" +
+			// MAIL_LIST[key].date);
 			var now = new Date().getTime(); // milliseconds
-			log("DAEMON: now: " + now);
-			log("DAEMON: now*1000: " + (now * 1000)); // microseconds
+			// log("DAEMON: now: " + now);
+			// log("DAEMON: now*1000: " + (now * 1000)); // microseconds
 			MAIL_LIST[key].date = now * 1000;
 			MAIL_LIST[key].folder.msgDatabase = null;
-			log("DAEMON: setting dates to actual date\t" + MAIL_LIST[key].date);
+			// log("DAEMON: setting dates to actual date\t" +
+			// MAIL_LIST[key].date);
 		}
 		DAEMON = setTimeout('daemonThread()', FREQ_TIME * 60000);
+		setTimeout('initFolders()', 30000); // half minute later check if there
+		// is a new mail written to the
+		// database
 		return;
 	}
 
 	log("--------------------------- Daemon cycle started ------------------------------");
-	log("Start time: " + new Date() + " Repeate freq: " + FREQ_TIME + "(m)");
+	log("Start time: " + new Date() + " Repeat freq: " + FREQ_TIME + "(m)");
 	log("-------------------------------------------------------------------------------");
 
 	// long operations
@@ -80,9 +85,9 @@ function daemonThread() {
 				log("WARNING! The forcelist or X-Forcebutton resend time changed! Using forcelist resend time!");
 				SEND_INTR[key] = send_int;
 			}
-			if (old < SEND_INTR[key] *  60 * 60 * 1000 *1000 ) { // microseconds
-				log("(" + (SEND_INTR[key] *  60 * 60 * 1000 *1000 - old) + "μs)\t"
-						+ MAIL_LIST[key].messageId + "\t"
+			if (old < SEND_INTR[key] * 60 * 60 * 1000 * 1000) { // microseconds
+				log("(" + (SEND_INTR[key] * 60 * 60 * 1000 * 1000 - old)
+						+ "μs)\t" + MAIL_LIST[key].messageId + "\t"
 						+ MAIL_LIST[key].subject);
 			} else {
 				log("-------------------------------------------------------------------------------");
@@ -190,6 +195,7 @@ function initTextFile(filename) {
 	var forceFileStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
 			.createInstance(Components.interfaces.nsIFileOutputStream);
 	/* use 0x02 | 0x10 to open file for appending. */
+	log("WRITE FILE:\t" + forceFile.path);
 	try {
 		forceFileStream.init(forceFile, 0x04 | 0x08 | 0x10,
 				parseInt("0644", 8), 0);
@@ -237,7 +243,14 @@ function overwriteTextFile(filename) {
 	var forceFileStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
 			.createInstance(Components.interfaces.nsIFileOutputStream);
 	/* use 0x02 | 0x10 to open file for overwrite. */
-	forceFileStream.init(forceFile, 0x04 | 0x08 | 0x20, parseInt("0644", 8), 0);
+	log("OVERWRITE FILE:\t" + forceFile.path);
+	try {
+		forceFileStream.init(forceFile, 0x04 | 0x08 | 0x20,
+				parseInt("0644", 8), 0);
+	} catch (ex) {
+		log("ex " + ex);
+	}
+
 	/*
 	 * PR_RDONLY 0x01 Open for reading only. PR_WRONLY 0x02 Open for writing
 	 * only. PR_RDWR 0x04 Open for reading and writing. PR_CREATE_FILE 0x08 If
@@ -278,7 +291,12 @@ function readTextFile(filename) {
 	var forceFileStream = Components.classes["@mozilla.org/network/file-input-stream;1"]
 			.createInstance(Components.interfaces.nsIFileInputStream);
 	/* use 0x02 | 0x10 to open file for appending. */
-	forceFileStream.init(forceFile, -1, -1, 0);
+	log("READ FILE:\t" + forceFile.path);
+	try {
+		forceFileStream.init(forceFile, -1, -1, 0);
+	} catch (ex) {
+		log("ex " + ex);
+	}
 	/*
 	 * Parameters
 	 * 
@@ -325,15 +343,14 @@ function removeMAIL_LIST(key, actualMsgHdrDb) {
 	log("--------------------------- Removed from MAIL LIST ----------------------------");
 	log("REMOVED MESSAGE:    " + MAIL_LIST[key].subject);
 
-	if (actualMsgHdrDb == undefined) {
+	if (actualMsgHdrDb == null ) {
 		MAIL_LIST[key].subject += " [Answered by manually]";
 	} else {
 		MAIL_LIST[key].subject += " [Answered by\"" + actualMsgHdrDb.subject
 				+ "\"]";
 	}
-	log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
-
 	MAIL_LIST[key].folder.msgDatabase = null;
+	log("REPLACED SUBJECT:   " + MAIL_LIST[key].subject);
 
 	// Removing from list
 	return delMAIL_LIST(key);
@@ -342,6 +359,7 @@ function removeMAIL_LIST(key, actualMsgHdrDb) {
 function delMAIL_LIST(messageId) {
 	var data = "";
 	var list = readTextFile(FORCELIST);
+
 	list.QueryInterface(Components.interfaces.nsIUnicharLineInputStream);
 
 	if (list instanceof Components.interfaces.nsIUnicharLineInputStream) {
@@ -375,7 +393,7 @@ function addToMAIL_LIST(actualMsgHdrDb) {
 			+ actualMsgHdrDb.getStringProperty("x-forcebutton").split(",")[0]
 			+ "h)");
 	if (MAIL_LIST[actualMsgHdrDb.messageId] == undefined) {
-		actualMsgHdrDb.date = new Date().getTime() * 1000000;
+		actualMsgHdrDb.date = new Date().getTime() * 1000; // milli -> microseconds
 		MAIL_LIST[actualMsgHdrDb.messageId] = actualMsgHdrDb;
 		SEND_INTR[actualMsgHdrDb.messageId] = actualMsgHdrDb.getStringProperty(
 				"x-forcebutton").split(",")[0];
@@ -675,6 +693,7 @@ function initMAIL_LIST() {
 			.writeString("#messageId,subject,SEND_INTR[actualMsgHdrDb.messageId]\n");
 	log("INITALIZATION: \"" + FORCEDIR + "/" + FORCELIST
 			+ "\" file has been cleared");
+	forcelist.close();
 }
 
 function initFolders() {
@@ -746,7 +765,6 @@ function daemonSentCheck() {
 	setTimeout('daemonSentCheck()', 60000);
 }
 
-
 function ProcessThisFolder(folder) {
 
 	// Folders not to check if monitor or not
@@ -770,7 +788,8 @@ function ProcessThisFolder(folder) {
 	// this coould be slow, checking for
 	var found = false;
 	for ( var i = 0; i < sentFolder.length && !found; i++) {
-		//log("\tchecking []" + sentFolder[i] + " vs nsIMsgfolder " + folder.URI);
+		// log("\tchecking []" + sentFolder[i] + " vs nsIMsgfolder " +
+		// folder.URI);
 		if (folder.URI.indexOf(sentFolder[i]) != -1) { // contains
 			for ( var j = 0; j < SENT.length && !found; j++) {
 				if (SENT[j] == folder) {
@@ -778,7 +797,8 @@ function ProcessThisFolder(folder) {
 				}
 			}
 			if (!found) {
-				log("\tsent folder (" + sentFolder.length + ") pushed " + folder.URI);
+				log("\tsent folder (" + sentFolder.length + ") pushed "
+						+ folder.URI);
 				SENT.push(folder);
 				found = true;
 			}
@@ -852,31 +872,30 @@ function ProcessThisMail(actualMsgHdrDb) {
 			} else {
 				return;
 			}
-			
 
 			if (actualMsgHdrDb.messageSize > MAIL_LIST[key].messageSize) {
-				match += ("------------- messageSize match ");
+				match += (" messageSize ");
 				// log(actualMsgHdrDb.messageSize + " > "
 				// + MAIL_LIST[key].messageSize);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.lineCount > MAIL_LIST[key].lineCount) {
-				match += ("------------- lineCount match ");
+				match += (" lineCount ");
 				// log(actualMsgHdrDb.lineCount + " > " +
 				// MAIL_LIST[key].lineCount);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.dateInSeconds > MAIL_LIST[key].dateInSeconds) {
-				match += ("------------- dateInSeconds match ");
+				match += (" dateInSeconds ");
 				// log(actualMsgHdrDb.dateInSeconds + " > "
 				// + MAIL_LIST[key].dateInSeconds);
 				vote++;
 			}
 
 			if (actualMsgHdrDb.author.indexOf(MAIL_LIST[key].recipients) != -1) {
-				match += ("------------- author match ");
+				match += (" author ");
 				// log(actualMsgHdrDb.author + " == " +
 				// MAIL_LIST[key].recipients);
 				vote++;
@@ -886,9 +905,8 @@ function ProcessThisMail(actualMsgHdrDb) {
 			// log("------------- vote: " + vote + " with \""
 			// + actualMsgHdrDb.subject + "\"-------------");
 			if (vote > 4) {
-				log("VOTE: " + vote);
-				log("\tmatch\n");
-				log(match);
+				log("VOTE:\t" + vote);
+				log("MATCH:\t" + match);
 				if (removeMAIL_LIST(key, actualMsgHdrDb)) {
 					log("------------------------------- Remove DONE! -----------------------------");
 				} else {
@@ -918,6 +936,7 @@ function initOnLoadListener() {
 
 var folderLoadListener = {
 	OnItemEvent : function(folder, event) {
+		// log("FOLDER LOAD EVENT:\t" + folder.prettyName);
 		if (folder.URI.indexOf("Junk") != -1)
 			return;
 
@@ -956,6 +975,7 @@ var folderLoadListener = {
 
 var newMailListener = {
 	msgAdded : function(aMsgHdr) {
+		log("NEW MAIL EVENT:\t" + aMsgHdr.subject);
 		ProcessThisMail(aMsgHdr); // The main objective of this listener
 	}
 };
@@ -1013,7 +1033,6 @@ function checkMAIL_LIST(messageId) {
 		} while (cont);
 	}
 	list.close();
-
 	return false;
 }
 

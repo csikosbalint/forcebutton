@@ -50,10 +50,8 @@ function dropMAIL_LIST() {
 	var selected= theList.getItemAtIndex(theList.selectedIndex);
 	var id = selected.getElementsByTagName('listcell')[2];
 	var sub = selected.getElementsByTagName('listcell')[0];
-	if ( delMAIL_LIST(id.getAttribute('label')) ) {
-		log("------------ \"" + sub.getAttribute('label') + "\" has been deleted ------------");
-	} else {
-		log("------------ \"" + sub.getAttribute('label') + "\" failed to remove ------------");
+	if ( !delMAIL_LIST(id.getAttribute('label')) ) {
+		alert( + sub.getAttribute('label') + "\" failed to remove+");
 	}
 	theList.removeItemAt(theList.selectedIndex);
 	if ( theList.itemCount == 0 ) {
