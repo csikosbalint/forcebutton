@@ -468,7 +468,10 @@ function sendMail(content, msgid) {
 	log("\tmarker\t\tremoved");
 	content = content.replace(/X-Forcebutton:.*(\r\n|\n|\r)/gm, "");
 	// log(content);
-	var to = content.match(/^To: .*$/m).toString().split(": ")[1];
+	
+	var to_line = content.match(/^To: .*$/m).toString().split(": ")[1];
+	var myRegexp = /(.*?)<(.*?)>($)/g;
+	var to = myRegexp.exec(to_line)[2];
 	var from = content.match(/^From: .*$/m).toString().split(": ")[1];
 
 	// Save mail.eml to temp folder
@@ -769,10 +772,15 @@ function ProcessThisFolder(folder) {
 
 	// Folders not to check if monitor or not
 	// TODO: get exclude folders from config window
-	if (folder.URI.indexOf("Junk") != -1)
+	if (folder.URI.indexOf("Junk") != -1){
 		return;
-	if (folder.URI.indexOf("Trash") != -1)
+	}
+	if (folder.URI.indexOf("Trash") != -1) {
 		return;
+	}
+	if (folder.URI.indexOf("Archive") != -1) {
+		return;
+	}
 
 	// Recursive check
 	if (folder.hasSubFolders) {
